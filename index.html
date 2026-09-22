@@ -22,8 +22,10 @@
   input, select { padding:8px; border-radius:8px; border:1px solid #ddd; margin:2px 0 8px 0; width:100%; }
   button.action { background:#ec4899; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:bold; }
   button.secondary { background:#f3f4f6; color:#333; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
-  button.danger { background:#fee2e2; color:#b91c1c; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:13px; }
-  button.mini { background:#f0f9ff; color:#0369a1; border:none; padding:5px 9px; border-radius:8px; cursor:pointer; font-size:12px; margin-left:4px; }
+  button.danger.mini-action { background:#fee2e2; color:#b91c1c; }
+  button.info.mini-action { background:#f0f9ff; color:#0369a1; }
+  button.warn.mini-action { background:#fef3c7; color:#92400e; }
+  button.mini-action { border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; margin-left:6px; min-width:64px; text-align:center; }
   .row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; flex-wrap:wrap; }
   .row .left { flex:1; }
   .row .actions { display:flex; align-items:center; }
@@ -35,6 +37,9 @@
   .info-icon { cursor:pointer; color:#0ea5e9; font-weight:bold; margin-left:6px; }
   h3 { margin-top:0; }
   .module-header { display:flex; justify-content:space-between; align-items:center; }
+  .module-title { display:flex; align-items:center; gap:8px; }
+  .module-icon-btn { width:34px; height:34px; border-radius:8px; border:1px solid #f3d9e7; background:#fdf2f8; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center; padding:0; overflow:hidden; }
+  .module-icon-btn img { width:100%; height:100%; object-fit:cover; }
   .group-card { border:1px solid #f3d9e7; border-radius:12px; padding:14px; margin-bottom:12px; cursor:pointer; }
   .group-card:hover { background:#fdf2f8; }
   .small { font-size:12px; color:#888; }
@@ -52,6 +57,13 @@
   input:checked + .slider { background-color:#ec4899; }
   input:checked + .slider:before { transform:translateX(20px); }
   .switch-label { font-size:14px; color:#333; }
+
+  /* Icon picker modal */
+  .modal-overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
+  .modal-box { background:white; border-radius:14px; padding:20px; width:90%; max-width:420px; max-height:80vh; overflow-y:auto; }
+  .emoji-grid { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+  .emoji-opt { width:40px; height:40px; font-size:20px; border:1px solid #eee; border-radius:8px; background:#fafafa; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .emoji-opt:hover { background:#fce7f3; }
 </style>
 </head>
 <body>
@@ -178,6 +190,19 @@
   </div>
 </div>
 
+<div id="iconPickerModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>選擇模塊圖示</h3>
+    <div id="emojiGrid" class="emoji-grid"></div>
+    <hr>
+    <label class="field-label">或上傳自訂圖片</label>
+    <input type="file" id="iconFileInput" accept="image/*">
+    <div class="inline-flex" style="margin-top:12px">
+      <button class="secondary" style="flex:1" onclick="closeIconPicker()">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://abvnsqfhefpxdwgkblkx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFidm5zcWZoZWZweGR3Z2tibGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTU2OTksImV4cCI6MjEwNTYzMTY5OX0.rdcA-0EPcx7kqEqFq8ZVR0g_d0rqydG1NVtFwAfIjF0";
@@ -190,9 +215,11 @@ if (SUPABASE_ANON_KEY.includes("填入")) {
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CURRENCIES = ["HKD","USD","CNY","TWD","JPY","EUR","GBP"];
+const EMOJI_CHOICES = ["📌","💳","🐱","🐶","🏠","🚗","💡","💧","🎓","🏥","🛒","🍔","🎮","📱","✈️","🎁","💰","📺","🎵","☂️","🧾","🏋️","💊","🧹","🐾","👶","🧾","📚","🌱","🔧"];
 
 let currentUser = null;
 let currentHouseholdId = null;
+let iconPickerTargetModuleId = null;
 
 function toggleEl(id){ document.getElementById(id).classList.toggle('hidden'); }
 function currencyOptions(selected){
@@ -304,6 +331,11 @@ async function loadPersonalData(){
   await renderModules('personalModulesArea', null);
 }
 
+function renderModuleIcon(mod){
+  if (mod.icon_image) return `<img src="${mod.icon_image}" alt="icon">`;
+  return mod.icon || '📌';
+}
+
 async function renderModules(containerId, householdId){
   const container = document.getElementById(containerId);
   let query = sb.from('expense_modules').select('*').order('created_at');
@@ -318,8 +350,11 @@ async function renderModules(containerId, householdId){
     card.id = `module_${mod.id}`;
     card.innerHTML = `
       <div class="module-header">
-        <h3>${mod.icon||'📌'} ${mod.name}</h3>
-        <button class="danger" onclick="deleteModule('${mod.id}','${containerId}',${householdId?`'${householdId}'`:null})">🗑️ 刪除模塊</button>
+        <div class="module-title">
+          <button class="module-icon-btn" onclick="openIconPicker('${mod.id}','${containerId}',${householdId?`'${householdId}'`:null})">${renderModuleIcon(mod)}</button>
+          <h3 style="margin:0">${mod.name}</h3>
+        </div>
+        <button class="danger mini-action" onclick="deleteModule('${mod.id}','${containerId}',${householdId?`'${householdId}'`:null})">🗑️ 刪除模塊</button>
       </div>
       <div id="items_${mod.id}"></div>
       <div class="calc-box" id="calc_${mod.id}"></div>
@@ -384,6 +419,51 @@ async function deleteModule(modId, containerId, householdId){
   await renderModules(containerId, householdId === 'null' ? null : householdId);
 }
 
+// ===== ICON PICKER =====
+function openIconPicker(modId, containerId, householdId){
+  iconPickerTargetModuleId = { modId, containerId, householdId };
+  const grid = document.getElementById('emojiGrid');
+  grid.innerHTML = EMOJI_CHOICES.map(e=>`<button class="emoji-opt" onclick="selectEmojiIcon('${e}')">${e}</button>`).join('');
+  document.getElementById('iconFileInput').value = '';
+  document.getElementById('iconPickerModal').classList.remove('hidden');
+}
+function closeIconPicker(){
+  document.getElementById('iconPickerModal').classList.add('hidden');
+  iconPickerTargetModuleId = null;
+}
+async function selectEmojiIcon(emoji){
+  const { modId, containerId, householdId } = iconPickerTargetModuleId;
+  const { error } = await sb.from('expense_modules').update({ icon: emoji, icon_image: null }).eq('id', modId);
+  if (error) { alert('更新圖示失敗：' + error.message); return; }
+  closeIconPicker();
+  await renderModules(containerId, householdId === 'null' ? null : householdId);
+}
+document.getElementById('iconFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file || !iconPickerTargetModuleId) return;
+  const dataUrl = await resizeImageToDataUrl(file, 64, 64);
+  const { modId, containerId, householdId } = iconPickerTargetModuleId;
+  const { error } = await sb.from('expense_modules').update({ icon_image: dataUrl, icon: null }).eq('id', modId);
+  if (error) { alert('上傳圖示失敗：' + error.message); return; }
+  closeIconPicker();
+  await renderModules(containerId, householdId === 'null' ? null : householdId);
+});
+function resizeImageToDataUrl(file, w, h){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (ev) => { img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    }; img.onerror = reject; img.src = ev.target.result; };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 async function refreshItems(modId){
   const { data: items, error } = await sb.from('expense_items').select('*').eq('module_id', modId).order('created_at', {ascending:true});
   const listEl = document.getElementById(`items_${modId}`);
@@ -399,8 +479,9 @@ async function refreshItems(modId){
         ${it.reminder_enabled ? `<span class="badge">提醒: ${(it.reminder_days||[]).join(',')}天前</span>` : ''}
       </div>
       <div class="actions">
-        <button class="mini" onclick="toggleEl('reminderPanel_${it.id}')">🔔 提醒</button>
-        <button class="danger" onclick="deleteItem('${it.id}','${modId}')">🗑️ 刪除</button>
+        <button class="warn mini-action" onclick="testReminderNow('${it.id}')">⚡ 立即提醒</button>
+        <button class="info mini-action" onclick="toggleEl('reminderPanel_${it.id}')">🔔 提醒</button>
+        <button class="danger mini-action" onclick="deleteItem('${it.id}','${modId}')">🗑️ 刪除</button>
       </div>
       <div id="reminderPanel_${it.id}" class="reminder-panel hidden">
         <div class="switch-row">
@@ -420,6 +501,29 @@ async function refreshItems(modId){
   `).join('');
 
   renderCalc(modId, items);
+}
+
+async function testReminderNow(itemId){
+  const btn = event.target;
+  const originalText = btn.innerText;
+  btn.innerText = '發送中...';
+  btn.disabled = true;
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/test-reminder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionData.session.access_token}` },
+      body: JSON.stringify({ item_id: itemId })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || '發送失敗');
+    alert(`測試提醒已發送！${result.telegramSent ? ' ✅ Telegram' : ''}${result.emailSent ? ' ✅ Email' : ''}${(!result.telegramSent && !result.emailSent) ? '（尚未啟用任何通知管道，請先在上方設定 Telegram 或 Email）' : ''}`);
+  } catch(e){
+    alert('發送失敗：' + e.message);
+  } finally {
+    btn.innerText = originalText;
+    btn.disabled = false;
+  }
 }
 
 async function saveReminder(itemId, modId){
@@ -484,7 +588,7 @@ async function renderCalc(modId, items){
     <div class="inline-flex">
       <span class="small">💱 換算成：</span>
       <select id="calcCurrency_${modId}" style="width:100px">${currencyOptions('HKD')}</select>
-      <button class="mini" onclick="runCalc('${modId}')">計算總額</button>
+      <button class="mini-action info" onclick="runCalc('${modId}')">計算總額</button>
     </div>
     <div id="calcResult_${modId}" class="small" style="margin-top:6px"></div>
   `;
