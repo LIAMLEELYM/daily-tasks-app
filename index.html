@@ -11,6 +11,10 @@
   header { background:linear-gradient(90deg,#ec4899,#f472b6); color:white; padding:20px; text-align:center; font-size:22px; font-weight:bold; }
   .container { max-width:900px; margin:0 auto; padding:20px; }
   .card { background:white; border-radius:14px; padding:20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  #authView { max-width:360px; margin:60px auto; text-align:center; }
+  #authView input { text-align:center; }
+  #authView h3 { font-size:20px; margin-bottom:16px; }
+  #authView button { width:100%; margin:6px 0; }
   .tabs { display:flex; gap:10px; margin-bottom:20px; }
   .tab-btn { flex:1; padding:12px; border-radius:10px; border:none; cursor:pointer; font-weight:bold; background:#fce7f3; color:#9d174d; }
   .tab-btn.active { background:#ec4899; color:white; }
@@ -58,7 +62,6 @@
     <!-- ============ PERSONAL TAB ============ -->
     <div id="personalTab">
 
-      <!-- Notification Setup Card -->
       <div class="card">
         <h3>🔔 到期通知設定</h3>
         <div id="telegramBanner" class="banner">尚未綁定 Telegram 專屬提醒 Bot</div>
@@ -93,7 +96,6 @@
         </div>
       </div>
 
-      <!-- Subscriptions -->
       <div class="card" id="subsCard">
         <div class="row">
           <h3>💳 訂閱與固定支出管理</h3>
@@ -107,7 +109,6 @@
         <button class="action" onclick="addSubscription(null)">新增訂閱</button>
       </div>
 
-      <!-- Cat Expenses -->
       <div class="card" id="catCard">
         <div class="row">
           <h3>🐱 貓咪開支記錄</h3>
@@ -117,7 +118,7 @@
         <input id="catItem" placeholder="項目">
         <input id="catAmount" type="number" placeholder="金額">
         <input id="catDate" type="date">
-        <button class="action" onclick="addCatExpense(null)">新增記錄</button>
+        <button class="action" onclick="addCatExpense()">新增記錄</button>
       </div>
 
       <div class="card" id="hiddenModulesCard">
@@ -125,7 +126,6 @@
         <div id="hiddenModulesList" class="small">沒有隱藏的模塊</div>
       </div>
 
-      <!-- Custom categories -->
       <div class="card">
         <h3>➕ 自訂分類</h3>
         <input id="newCatName" placeholder="分類名稱">
@@ -206,18 +206,24 @@
 <script>
 const SUPABASE_URL = "https://abvnsqfhefpxdwgkblkx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFidm5zcWZoZWZweGR3Z2tibGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTU2OTksImV4cCI6MjEwNTYzMTY5OX0.rdcA-0EPcx7kqEqFq8ZVR0g_d0rqydG1NVtFwAfIjF0";
+
+if (SUPABASE_ANON_KEY.includes("填入")) {
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('authMsg').innerText = "⚠️ 尚未設定 SUPABASE_ANON_KEY，請先在程式碼中填入正確的 anon public key 後重新整理頁面。";
+  });
+}
+
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
 let currentHouseholdId = null;
-let isSignupMode = false;
 
 function toggleEl(id){ document.getElementById(id).classList.toggle('hidden'); }
 
 async function signup(){
-  isSignupMode = true;
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
+  if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
   const { data, error } = await supabase.auth.signUp({ email, password });
   document.getElementById('authMsg').innerText = error ? error.message : "註冊成功！請檢查Email確認信，確認後回來登入。";
 }
@@ -225,6 +231,7 @@ async function signup(){
 async function login(){
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
+  if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) { document.getElementById('authMsg').innerText = error.message; return; }
   currentUser = data.user;
@@ -260,7 +267,6 @@ function switchTab(tab){
   }
 }
 
-// ===== PERSONAL TELEGRAM BOT SETUP =====
 async function setupPersonalBot(){
   const username = document.getElementById('tgUsername').value.trim();
   const token = document.getElementById('tgToken').value.trim();
@@ -300,7 +306,6 @@ async function toggleEmail(){
   await supabase.from('user_settings').update({ email_opted_in: checked }).eq('user_id', currentUser.id);
 }
 
-// ===== SUBSCRIPTIONS (personal) =====
 async function loadPersonalData(){
   await checkPersonalBotStatus();
   await loadHiddenModules();
@@ -411,7 +416,6 @@ async function deleteCustomCategory(id){
   if (currentHouseholdId) await refreshHouseholdCategories(currentHouseholdId);
 }
 
-// ===== HOUSEHOLDS =====
 async function loadHouseholds(){
   const { data: memberships } = await supabase.from('household_members').select('household_id, role, households(id,name,telegram_bot_username)').eq('user_id', currentUser.id);
   const listEl = document.getElementById('householdList');
@@ -517,7 +521,6 @@ async function addHouseholdCategory(){
   await addCustomCategory(currentHouseholdId);
 }
 
-// Auto-login check on load
 supabase.auth.getSession().then(({data}) => {
   if (data.session) {
     currentUser = data.session.user;
