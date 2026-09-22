@@ -9,7 +9,7 @@
   * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", sans-serif; background:#fdf2f8; margin:0; color:#333; }
   header { background:linear-gradient(90deg,#ec4899,#f472b6); color:white; padding:20px; text-align:center; font-size:22px; font-weight:bold; }
-  .container { max-width:900px; margin:0 auto; padding:20px; }
+  .container { max-width:960px; margin:0 auto; padding:20px; }
   .card { background:white; border-radius:14px; padding:20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
   #authView { max-width:360px; margin:60px auto; text-align:center; }
   #authView input { text-align:center; }
@@ -23,7 +23,10 @@
   button.action { background:#ec4899; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer; font-weight:bold; }
   button.secondary { background:#f3f4f6; color:#333; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; }
   button.danger { background:#fee2e2; color:#b91c1c; border:none; padding:6px 10px; border-radius:8px; cursor:pointer; font-size:13px; }
-  .row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; }
+  button.mini { background:#f0f9ff; color:#0369a1; border:none; padding:5px 9px; border-radius:8px; cursor:pointer; font-size:12px; margin-left:4px; }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; flex-wrap:wrap; }
+  .row .left { flex:1; }
+  .row .actions { display:flex; align-items:center; }
   .hidden { display:none; }
   .banner { background:#fef9c3; border-radius:10px; padding:12px; margin-bottom:14px; font-size:14px; }
   .banner.ok { background:#dcfce7; }
@@ -31,9 +34,14 @@
   .badge { background:#ec4899; color:white; border-radius:999px; padding:2px 8px; font-size:12px; }
   .info-icon { cursor:pointer; color:#0ea5e9; font-weight:bold; margin-left:6px; }
   h3 { margin-top:0; }
+  .module-header { display:flex; justify-content:space-between; align-items:center; }
   .group-card { border:1px solid #f3d9e7; border-radius:12px; padding:14px; margin-bottom:12px; cursor:pointer; }
   .group-card:hover { background:#fdf2f8; }
   .small { font-size:12px; color:#888; }
+  .reminder-panel { background:#fdf4ff; border-radius:8px; padding:10px; margin:6px 0; font-size:13px; width:100%; }
+  .calc-box { background:#f0fdf4; border-radius:10px; padding:12px; margin-top:10px; }
+  .inline-flex { display:flex; gap:8px; align-items:center; }
+  .inline-flex input, .inline-flex select { margin:0; }
 </style>
 </head>
 <body>
@@ -42,9 +50,8 @@
 
 <div class="container">
 
-  <!-- LOGIN VIEW -->
   <div id="authView" class="card">
-    <h3 id="authTitle">登入</h3>
+    <h3>登入</h3>
     <input id="authEmail" type="email" placeholder="Email">
     <input id="authPassword" type="password" placeholder="密碼">
     <button class="action" onclick="login()">登入</button>
@@ -52,7 +59,6 @@
     <div id="authMsg" class="small"></div>
   </div>
 
-  <!-- MAIN APP -->
   <div id="appView" class="hidden">
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('personal')">👤 我的專屬</button>
@@ -60,103 +66,52 @@
     </div>
     <button class="secondary" style="float:right;margin-bottom:10px" onclick="logout()">登出</button>
 
-    <!-- ============ PERSONAL TAB ============ -->
     <div id="personalTab">
 
       <div class="card">
         <h3>🔔 到期通知設定</h3>
-
-        <!-- Telegram -->
         <div id="telegramBanner" class="banner">尚未綁定 Telegram 專屬提醒 Bot</div>
         <button class="secondary" onclick="toggleEl('telegramSetup')">📱 設定 Telegram 到期通知</button>
         <span class="info-icon" onclick="toggleEl('telegramTutorial')">ℹ️ 查看教學</span>
-
         <div id="telegramTutorial" class="tutorial hidden">
           <b>如何取得 Bot 使用者名稱與 API Token：</b>
           <ol>
             <li>下載並打開 Telegram App，完成手機號碼註冊。</li>
-            <li>搜尋 <b>@BotFather</b>（有官方認證勾勾），點擊開始對話。</li>
-            <li>輸入指令 <code>/newbot</code>。</li>
-            <li>依提示輸入你的 Bot 顯示名稱（任意），例如「小明的提醒」。</li>
-            <li>接著輸入 Bot 使用者名稱，必須是英文並以 <code>bot</code> 結尾，例如 <code>xiaoming_reminder_bot</code>。</li>
-            <li>BotFather 會回覆一段訊息，裡面有一串 <b>API Token</b>（格式類似 123456:ABC-xxxx），完整複製它。</li>
-            <li>回到本頁面，把「使用者名稱」和「API Token」填入下方欄位，按下確認。</li>
+            <li>搜尋 <b>@BotFather</b>，點擊開始對話。</li>
+            <li>輸入指令 <code>/newbot</code>，依提示命名並取得使用者名稱（需以 bot 結尾）。</li>
+            <li>複製 BotFather 回覆的 API Token。</li>
+            <li>填入下方欄位並確認。</li>
           </ol>
         </div>
-
         <div id="telegramSetup" class="hidden" style="margin-top:10px">
           <label class="field-label">Bot 使用者名稱</label>
           <input id="tgUsername" placeholder="例如 xiaoming_reminder_bot">
           <label class="field-label">Bot API Token</label>
           <input id="tgToken" placeholder="從 BotFather 取得的 Token">
-          <label class="field-label">你的暱稱（提醒訊息會顯示）</label>
+          <label class="field-label">你的暱稱</label>
           <input id="tgNickname" placeholder="例如：小明">
           <button class="action" onclick="setupPersonalBot()">確認並自動部署 Bot</button>
           <button class="secondary" onclick="resetPersonalBot()">🔄 重新綁定 / 清除設定</button>
           <div id="tgSetupMsg" class="small"></div>
         </div>
-
         <hr>
-
-        <!-- Email -->
         <div id="emailBanner" class="banner">尚未啟用 Email 到期通知</div>
         <button class="secondary" onclick="toggleEl('emailSetup')">📧 設定 Email 到期通知</button>
-
         <div id="emailSetup" class="hidden" style="margin-top:10px">
-          <p class="small">將使用你註冊登入時的 Email 地址接收到期提醒，點擊下方按鈕即可啟用或關閉。</p>
+          <p class="small">將使用你註冊登入時的 Email 地址接收到期提醒。</p>
           <button class="action" id="emailToggleBtn" onclick="toggleEmail()">啟用 Email 通知</button>
         </div>
       </div>
 
-      <div class="card" id="subsCard">
-        <div class="row">
-          <h3>💳 訂閱與固定支出管理</h3>
-          <button class="danger" onclick="hideModule('subscriptions')">🗑️ 隱藏此模塊</button>
-        </div>
-        <div id="subsList"></div>
-        <label class="field-label">名稱</label>
-        <input id="subName" placeholder="例如：Netflix">
-        <label class="field-label">金額</label>
-        <input id="subAmount" type="number" placeholder="例如：100">
-        <label class="field-label">到期日期</label>
-        <input id="subDate" type="date">
-        <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
-        <input id="subReminder" placeholder="例如 7,30" value="7">
-        <button class="action" onclick="addSubscription(null)">新增訂閱</button>
-        <div id="subMsg" class="small"></div>
-      </div>
-
-      <div class="card" id="catCard">
-        <div class="row">
-          <h3>🐱 貓咪開支記錄</h3>
-          <button class="danger" onclick="hideModule('cat_expenses')">🗑️ 隱藏此模塊</button>
-        </div>
-        <div id="catList"></div>
-        <label class="field-label">項目</label>
-        <input id="catItem" placeholder="例如：貓糧">
-        <label class="field-label">金額</label>
-        <input id="catAmount" type="number" placeholder="例如：100">
-        <label class="field-label">日期</label>
-        <input id="catDate" type="date">
-        <button class="action" onclick="addCatExpense()">新增記錄</button>
-        <div id="catMsg" class="small"></div>
-      </div>
-
-      <div class="card" id="hiddenModulesCard">
-        <h3>已隱藏的模塊</h3>
-        <div id="hiddenModulesList" class="small">沒有隱藏的模塊</div>
-      </div>
+      <div id="personalModulesArea"></div>
 
       <div class="card">
-        <h3>➕ 自訂分類</h3>
-        <input id="newCatName" placeholder="分類名稱">
-        <button class="action" onclick="addCustomCategory(null)">新增分類</button>
-        <div id="customCategoriesList"></div>
-        <div id="customCatMsg" class="small"></div>
+        <h3>➕ 新增模塊</h3>
+        <input id="newModuleName" placeholder="模塊名稱，例如：日常開支">
+        <button class="action" onclick="createModule(null)">新增模塊</button>
       </div>
     </div>
 
-    <!-- ============ HOUSEHOLD TAB ============ -->
     <div id="householdTab" class="hidden">
       <div class="card">
         <h3>👨‍👩‍👧 我的群組</h3>
@@ -181,49 +136,32 @@
           <div id="hdBanner" class="banner">此群組尚未設定通知 Bot</div>
           <button class="secondary" onclick="toggleEl('hdBotSetup')">📱 設定群組 Telegram 通知</button>
           <span class="info-icon" onclick="toggleEl('hdBotTutorial')">ℹ️ 查看教學</span>
-
           <div id="hdBotTutorial" class="tutorial hidden">
-            跟個人 Bot 設定方式相同：搜尋 @BotFather → /newbot → 依提示命名 → 取得 API Token，填入下方（此 Bot 將作為此群組所有成員共用的通知 Bot，只需群組建立者設定一次）。
+            跟個人 Bot 設定方式相同：搜尋 @BotFather → /newbot → 依提示命名 → 取得 API Token，填入下方。
           </div>
-
           <div id="hdBotSetup" class="hidden">
             <input id="hdTgUsername" placeholder="Bot 使用者名稱">
             <input id="hdTgToken" placeholder="Bot API Token">
             <button class="action" onclick="setupHouseholdBot()">確認並部署群組 Bot</button>
           </div>
-
           <div id="hdJoinBotArea" class="hidden" style="margin-top:10px">
-            <p class="small">群組 Bot 已設定：<b id="hdBotUsernameShow"></b>，點擊下方按鈕綁定你自己的通知：</p>
+            <p class="small">群組 Bot 已設定：<b id="hdBotUsernameShow"></b></p>
             <button class="action" id="hdJoinBotBtn">📲 綁定我的通知</button>
           </div>
-
           <hr>
           <button class="secondary" onclick="showInviteCode()">🔗 生成邀請碼</button>
           <div id="inviteCodeShow" class="small"></div>
+          <hr>
+          <b>群組成員</b>
+          <div id="hdMembersList" class="small"></div>
         </div>
 
-        <div class="card">
-          <div class="row">
-            <h3>💳 家庭訂閱與固定支出管理</h3>
-          </div>
-          <div id="hdSubsList"></div>
-          <label class="field-label">名稱</label>
-          <input id="hdSubName" placeholder="例如：Netflix家庭方案">
-          <label class="field-label">金額</label>
-          <input id="hdSubAmount" type="number" placeholder="例如：100">
-          <label class="field-label">到期日期</label>
-          <input id="hdSubDate" type="date">
-          <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
-          <input id="hdSubReminder" placeholder="例如 7,30" value="7">
-          <button class="action" onclick="addHouseholdSubscription()">新增家庭訂閱</button>
-          <div id="hdSubMsg" class="small"></div>
-        </div>
+        <div id="householdModulesArea"></div>
 
         <div class="card">
-          <h3>➕ 群組自訂分類</h3>
-          <input id="hdNewCatName" placeholder="分類名稱">
-          <button class="action" onclick="addHouseholdCategory()">新增分類</button>
-          <div id="hdCustomCategoriesList"></div>
+          <h3>➕ 新增群組模塊</h3>
+          <input id="newHdModuleName" placeholder="模塊名稱，例如：家庭日常開支">
+          <button class="action" onclick="createModule(currentHouseholdId)">新增模塊</button>
         </div>
       </div>
     </div>
@@ -236,23 +174,27 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 if (SUPABASE_ANON_KEY.includes("填入")) {
   window.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('authMsg').innerText = "⚠️ 尚未設定 SUPABASE_ANON_KEY，請先在程式碼中填入正確的 anon public key 後重新整理頁面。";
+    document.getElementById('authMsg').innerText = "⚠️ 請先在程式碼中填入 anon public key";
   });
 }
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const CURRENCIES = ["HKD","USD","CNY","TWD","JPY","EUR","GBP"];
 
 let currentUser = null;
 let currentHouseholdId = null;
 
 function toggleEl(id){ document.getElementById(id).classList.toggle('hidden'); }
+function currencyOptions(selected){
+  return CURRENCIES.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
+}
 
 async function signup(){
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
   if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
-  const { data, error } = await sb.auth.signUp({ email, password });
-  document.getElementById('authMsg').innerText = error ? error.message : "註冊成功！請檢查Email確認信，確認後回來登入。";
+  const { error } = await sb.auth.signUp({ email, password });
+  document.getElementById('authMsg').innerText = error ? error.message : "註冊成功！請檢查Email確認信後回來登入。";
 }
 
 async function login(){
@@ -263,21 +205,27 @@ async function login(){
   if (error) { document.getElementById('authMsg').innerText = error.message; return; }
   currentUser = data.user;
   await ensureUserSettings();
+  await ensureBuiltinModules();
   document.getElementById('authView').classList.add('hidden');
   document.getElementById('appView').classList.remove('hidden');
   await loadPersonalData();
   await loadHouseholds();
 }
 
-async function logout(){
-  await sb.auth.signOut();
-  location.reload();
-}
+async function logout(){ await sb.auth.signOut(); location.reload(); }
 
 async function ensureUserSettings(){
   const { data } = await sb.from('user_settings').select('*').eq('user_id', currentUser.id).maybeSingle();
-  if (!data) {
-    await sb.from('user_settings').insert({ user_id: currentUser.id });
+  if (!data) await sb.from('user_settings').insert({ user_id: currentUser.id });
+}
+
+async function ensureBuiltinModules(){
+  const { data } = await sb.from('expense_modules').select('id').eq('user_id', currentUser.id).is('household_id', null);
+  if (!data || data.length === 0) {
+    await sb.from('expense_modules').insert([
+      { name: '訂閱與固定支出管理', icon: '💳', is_builtin: true, user_id: currentUser.id },
+      { name: '貓咪開支記錄', icon: '🐱', is_builtin: true, user_id: currentUser.id }
+    ]);
   }
 }
 
@@ -294,7 +242,7 @@ function switchTab(tab){
   }
 }
 
-// ===== TELEGRAM PERSONAL BOT =====
+// ===== TELEGRAM / EMAIL (unchanged logic) =====
 async function setupPersonalBot(){
   const username = document.getElementById('tgUsername').value.trim();
   const token = document.getElementById('tgToken').value.trim();
@@ -302,224 +250,236 @@ async function setupPersonalBot(){
   const msgEl = document.getElementById('tgSetupMsg');
   if (!username || !token) { msgEl.innerText = "請填寫使用者名稱與 Token"; return; }
   msgEl.innerText = "驗證中...";
-
   try {
     const verifyRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
     const verifyData = await verifyRes.json();
-    if (!verifyData.ok) { msgEl.innerText = "Token 無效，請重新確認"; return; }
-
+    if (!verifyData.ok) { msgEl.innerText = "Token 無效"; return; }
     const { error } = await sb.from('user_settings').update({
-      telegram_bot_token: token,
-      telegram_bot_username: username,
-      display_name: nickname,
-      telegram_opted_in: false
+      telegram_bot_token: token, telegram_bot_username: username, display_name: nickname, telegram_opted_in: false
     }).eq('user_id', currentUser.id);
     if (error) throw error;
-
     const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-webhook?mode=personal&token=${token}`;
     await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
-
-    msgEl.innerHTML = `部署成功！現在請在 Telegram 打開 <a href="https://t.me/${username}?start=${currentUser.id}" target="_blank">這個連結</a> 並點擊 Start 完成綁定，完成後回來重新整理本頁面。`;
-  } catch(e){
-    msgEl.innerText = "發生錯誤：" + e.message;
-  }
+    msgEl.innerHTML = `部署成功！請在 Telegram 打開 <a href="https://t.me/${username}?start=${currentUser.id}" target="_blank">這個連結</a> 並點 Start，完成後重新整理頁面。`;
+  } catch(e){ msgEl.innerText = "發生錯誤：" + e.message; }
 }
-
 async function resetPersonalBot(){
-  if(!confirm('確定要清除目前的 Telegram 綁定設定嗎？')) return;
-  await sb.from('user_settings').update({
-    telegram_bot_token: null, telegram_bot_username: null,
-    telegram_chat_id: null, telegram_opted_in: false
-  }).eq('user_id', currentUser.id);
+  if(!confirm('確定清除 Telegram 綁定？')) return;
+  await sb.from('user_settings').update({ telegram_bot_token:null, telegram_bot_username:null, telegram_chat_id:null, telegram_opted_in:false }).eq('user_id', currentUser.id);
   await checkPersonalBotStatus();
-  document.getElementById('tgSetupMsg').innerText = "已清除，可以重新設定。";
 }
-
 async function checkPersonalBotStatus(){
   const { data } = await sb.from('user_settings').select('telegram_opted_in, telegram_bot_username, email_opted_in').eq('user_id', currentUser.id).maybeSingle();
   const banner = document.getElementById('telegramBanner');
   if (data?.telegram_opted_in && data?.telegram_bot_username) {
-    banner.className = 'banner ok';
-    banner.innerText = `✅ 已綁定 Telegram Bot：${data.telegram_bot_username}`;
+    banner.className = 'banner ok'; banner.innerText = `✅ 已綁定 Telegram Bot：${data.telegram_bot_username}`;
   } else {
     banner.className = 'banner';
-    banner.innerText = data?.telegram_bot_username
-      ? `⚠️ Bot「${data.telegram_bot_username}」已設定但尚未完成綁定，請點擊教學連結完成 Start 步驟`
-      : '尚未綁定 Telegram 專屬提醒 Bot';
+    banner.innerText = data?.telegram_bot_username ? `⚠️ Bot「${data.telegram_bot_username}」尚未完成綁定` : '尚未綁定 Telegram 專屬提醒 Bot';
   }
-
   const emailBanner = document.getElementById('emailBanner');
   const emailBtn = document.getElementById('emailToggleBtn');
-  if (data?.email_opted_in) {
-    emailBanner.className = 'banner ok';
-    emailBanner.innerText = '✅ 已啟用 Email 到期通知';
-    emailBtn.innerText = '關閉 Email 通知';
-  } else {
-    emailBanner.className = 'banner';
-    emailBanner.innerText = '尚未啟用 Email 到期通知';
-    emailBtn.innerText = '啟用 Email 通知';
+  if (data?.email_opted_in) { emailBanner.className='banner ok'; emailBanner.innerText='✅ 已啟用 Email 到期通知'; emailBtn.innerText='關閉 Email 通知'; }
+  else { emailBanner.className='banner'; emailBanner.innerText='尚未啟用 Email 到期通知'; emailBtn.innerText='啟用 Email 通知'; }
+}
+async function toggleEmail(){
+  const { data } = await sb.from('user_settings').select('email_opted_in').eq('user_id', currentUser.id).maybeSingle();
+  await sb.from('user_settings').update({ email_opted_in: !data?.email_opted_in }).eq('user_id', currentUser.id);
+  await checkPersonalBotStatus();
+}
+
+// ===== MODULES & ITEMS (core new logic) =====
+async function loadPersonalData(){
+  await checkPersonalBotStatus();
+  await renderModules('personalModulesArea', null);
+}
+
+async function renderModules(containerId, householdId){
+  const container = document.getElementById(containerId);
+  let query = sb.from('expense_modules').select('*').order('created_at');
+  query = householdId ? query.eq('household_id', householdId) : query.is('household_id', null).eq('user_id', currentUser.id);
+  const { data: modules, error } = await query;
+  if (error) { container.innerHTML = `<p class="small">載入失敗：${error.message}</p>`; return; }
+
+  container.innerHTML = '';
+  for (const mod of (modules||[])) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = `module_${mod.id}`;
+    card.innerHTML = `
+      <div class="module-header">
+        <h3>${mod.icon||'📌'} ${mod.name}</h3>
+        <button class="danger" onclick="deleteModule('${mod.id}','${containerId}',${householdId?`'${householdId}'`:null})">🗑️ 刪除模塊</button>
+      </div>
+      <div id="items_${mod.id}"></div>
+      <div class="calc-box" id="calc_${mod.id}"></div>
+      <hr>
+      <label class="field-label">名稱</label>
+      <input id="name_${mod.id}" placeholder="例如：Netflix / 買菜">
+      <div class="inline-flex">
+        <div style="flex:1">
+          <label class="field-label">金額</label>
+          <input id="amount_${mod.id}" type="number" placeholder="0">
+        </div>
+        <div style="width:100px">
+          <label class="field-label">幣種</label>
+          <select id="currency_${mod.id}">${currencyOptions('HKD')}</select>
+        </div>
+      </div>
+      <label class="field-label">日期</label>
+      <input id="date_${mod.id}" type="date">
+      <label class="inline-flex" style="font-size:13px;color:#333;font-weight:normal">
+        <input type="checkbox" id="reminderToggle_${mod.id}" style="width:auto" onchange="toggleReminderInput('${mod.id}')"> 需要到期提醒
+      </label>
+      <input id="reminderDays_${mod.id}" class="hidden" placeholder="希望到期前多久提醒您（天，例如 7,30）">
+      <button class="action" onclick="addItem('${mod.id}', ${householdId?`'${householdId}'`:null})">新增一筆</button>
+      <div id="itemMsg_${mod.id}" class="small"></div>
+    `;
+    container.appendChild(card);
+    await refreshItems(mod.id);
   }
 }
 
-async function toggleEmail(){
-  const { data } = await sb.from('user_settings').select('email_opted_in').eq('user_id', currentUser.id).maybeSingle();
-  const newVal = !data?.email_opted_in;
-  await sb.from('user_settings').update({ email_opted_in: newVal }).eq('user_id', currentUser.id);
-  await checkPersonalBotStatus();
+function toggleReminderInput(modId){
+  document.getElementById(`reminderDays_${modId}`).classList.toggle('hidden');
 }
 
-async function loadPersonalData(){
-  await checkPersonalBotStatus();
-  await loadHiddenModules();
-  await refreshSubscriptions();
-  await refreshCatExpenses();
-  await refreshCustomCategories();
-}
-
-async function loadHiddenModules(){
-  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
-  const hidden = data?.hidden_modules || [];
-  document.getElementById('subsCard').classList.toggle('hidden', hidden.includes('subscriptions'));
-  document.getElementById('catCard').classList.toggle('hidden', hidden.includes('cat_expenses'));
-  const listEl = document.getElementById('hiddenModulesList');
-  listEl.innerHTML = hidden.length ? hidden.map(m=>`<span class="badge" style="background:#f3f4f6;color:#333;cursor:pointer" onclick="unhideModule('${m}')">${m} (點擊恢復)</span>`).join(' ') : '沒有隱藏的模塊';
-}
-
-async function hideModule(mod){
-  if(!confirm('確定要隱藏此模塊嗎？資料不會被刪除，可隨時恢復。')) return;
-  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
-  const hidden = new Set(data?.hidden_modules || []);
-  hidden.add(mod);
-  await sb.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
-  await loadHiddenModules();
-}
-
-async function unhideModule(mod){
-  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
-  const hidden = new Set(data?.hidden_modules || []);
-  hidden.delete(mod);
-  await sb.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
-  await loadHiddenModules();
-}
-
-// ===== SUBSCRIPTIONS =====
-async function refreshSubscriptions(){
-  const { data, error } = await sb.from('subscriptions').select('*').is('household_id', null).eq('user_id', currentUser.id).order('next_date');
-  if (error) { console.error(error); return; }
-  document.getElementById('subsList').innerHTML = (data||[]).map(s=>`
-    <div class="row">
-      <span>${s.name} - ${s.amount} ${s.currency||''} (到期: ${s.next_date})</span>
-      <button class="danger" onclick="deleteSubscription('${s.id}')">🗑️ 刪除</button>
-    </div>`).join('') || '<p class="small">目前沒有訂閱項目</p>';
-}
-
-async function addSubscription(householdId){
-  const nameEl = document.getElementById(householdId ? 'hdSubName' : 'subName');
-  const amountEl = document.getElementById(householdId ? 'hdSubAmount' : 'subAmount');
-  const dateEl = document.getElementById(householdId ? 'hdSubDate' : 'subDate');
-  const reminderEl = document.getElementById(householdId ? 'hdSubReminder' : 'subReminder');
-  const msgEl = document.getElementById(householdId ? 'hdSubMsg' : 'subMsg');
-
+async function createModule(householdId){
+  const nameEl = document.getElementById(householdId ? 'newHdModuleName' : 'newModuleName');
   const name = nameEl.value.trim();
-  const amount = amountEl.value;
-  const date = dateEl.value;
-  const reminderStr = reminderEl.value;
+  if (!name) return;
+  const payload = householdId ? { name, household_id: householdId } : { name, user_id: currentUser.id };
+  const { error } = await sb.from('expense_modules').insert(payload);
+  if (error) { alert('新增模塊失敗：' + error.message); return; }
+  nameEl.value = '';
+  if (householdId) await renderModules('householdModulesArea', householdId);
+  else await renderModules('personalModulesArea', null);
+}
+
+async function deleteModule(modId, containerId, householdId){
+  if (!confirm('確定刪除整個模塊？其中所有記錄也會一併刪除。')) return;
+  const { error } = await sb.from('expense_modules').delete().eq('id', modId);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  await renderModules(containerId, householdId === 'null' ? null : householdId);
+}
+
+async function refreshItems(modId){
+  const { data: items, error } = await sb.from('expense_items').select('*').eq('module_id', modId).order('item_date', {ascending:true, nullsFirst:false});
+  const listEl = document.getElementById(`items_${modId}`);
+  if (error) { listEl.innerHTML = `<p class="small">${error.message}</p>`; return; }
+  if (!items || items.length === 0) { listEl.innerHTML = '<p class="small">目前沒有記錄</p>'; renderCalc(modId, []); return; }
+
+  listEl.innerHTML = items.map(it => `
+    <div class="row">
+      <div class="left">
+        <b>${it.name}</b> - ${it.amount} ${it.currency}${it.item_date ? ' (日期: '+it.item_date+')' : ''}
+        ${it.reminder_enabled ? `<span class="badge">提醒: ${(it.reminder_days||[]).join(',')}天前</span>` : ''}
+      </div>
+      <div class="actions">
+        <button class="mini" onclick="toggleEl('reminderPanel_${it.id}')">🔔 提醒</button>
+        <button class="danger" onclick="deleteItem('${it.id}','${modId}')">🗑️ 刪除</button>
+      </div>
+      <div id="reminderPanel_${it.id}" class="reminder-panel hidden">
+        <label class="inline-flex" style="font-weight:normal">
+          <input type="checkbox" id="renable_${it.id}" style="width:auto" ${it.reminder_enabled?'checked':''}> 啟用到期提醒
+        </label>
+        <input id="rdays_${it.id}" placeholder="提醒天數，例如 7,30" value="${(it.reminder_days||[]).join(',')}">
+        <button class="action" onclick="saveReminder('${it.id}','${modId}')">儲存提醒設定</button>
+      </div>
+    </div>
+  `).join('');
+
+  renderCalc(modId, items);
+}
+
+async function saveReminder(itemId, modId){
+  const enabled = document.getElementById(`renable_${itemId}`).checked;
+  const daysStr = document.getElementById(`rdays_${itemId}`).value;
+  const days = daysStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+  const { error } = await sb.from('expense_items').update({
+    reminder_enabled: enabled, reminder_days: days.length ? days : [7]
+  }).eq('id', itemId);
+  if (error) { alert('儲存失敗：' + error.message); return; }
+  await refreshItems(modId);
+}
+
+async function addItem(modId, householdId){
+  const name = document.getElementById(`name_${modId}`).value.trim();
+  const amount = document.getElementById(`amount_${modId}`).value;
+  const currency = document.getElementById(`currency_${modId}`).value;
+  const date = document.getElementById(`date_${modId}`).value;
+  const reminderEnabled = document.getElementById(`reminderToggle_${modId}`).checked;
+  const daysStr = document.getElementById(`reminderDays_${modId}`).value;
+  const days = daysStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+  const msgEl = document.getElementById(`itemMsg_${modId}`);
 
   if (!name) { msgEl.innerText = "請填寫名稱"; return; }
-  if (!date) { msgEl.innerText = "請選擇到期日期"; return; }
 
-  const reminderDays = reminderStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
-  if (reminderDays.length === 0) reminderDays.push(7);
-
-  const { error } = await sb.from('subscriptions').insert({
-    name, amount: parseFloat(amount)||0, next_date: date,
-    reminder_days: reminderDays, user_id: currentUser.id,
-    household_id: householdId
-  });
-
-  if (error) { msgEl.innerText = "新增失敗：" + error.message; console.error(error); return; }
-
+  const payload = {
+    module_id: modId, name, amount: parseFloat(amount)||0, currency,
+    item_date: date || null,
+    reminder_enabled: reminderEnabled,
+    reminder_days: days.length ? days : [7],
+    user_id: currentUser.id,
+    household_id: householdId === 'null' ? null : householdId
+  };
+  const { error } = await sb.from('expense_items').insert(payload);
+  if (error) { msgEl.innerText = "新增失敗：" + error.message; return; }
   msgEl.innerText = "新增成功！";
-  nameEl.value=''; amountEl.value=''; dateEl.value='';
-
-  if (householdId) { await refreshHouseholdSubscriptions(householdId); } else { await refreshSubscriptions(); }
+  document.getElementById(`name_${modId}`).value='';
+  document.getElementById(`amount_${modId}`).value='';
+  document.getElementById(`date_${modId}`).value='';
+  await refreshItems(modId);
 }
 
-async function deleteSubscription(id){
-  if(!confirm('確定刪除這筆訂閱？')) return;
-  const { error } = await sb.from('subscriptions').delete().eq('id', id);
-  if (error) { alert("刪除失敗：" + error.message); return; }
-  await refreshSubscriptions();
-  if (currentHouseholdId) await refreshHouseholdSubscriptions(currentHouseholdId);
+async function deleteItem(itemId, modId){
+  if (!confirm('確定刪除這筆記錄？')) return;
+  const { error } = await sb.from('expense_items').delete().eq('id', itemId);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+  await refreshItems(modId);
 }
 
-// ===== CAT EXPENSES =====
-async function refreshCatExpenses(){
-  const { data, error } = await sb.from('cat_expenses').select('*').eq('user_id', currentUser.id).order('date', {ascending:false});
-  if (error) { console.error(error); return; }
-  document.getElementById('catList').innerHTML = (data||[]).map(c=>`
-    <div class="row">
-      <span>${c.item} - ${c.amount} (${c.date})</span>
-      <button class="danger" onclick="deleteCatExpense('${c.id}')">🗑️ 刪除</button>
-    </div>`).join('') || '<p class="small">目前沒有記錄</p>';
+// ===== CURRENCY CONVERTER CALCULATOR =====
+async function renderCalc(modId, items){
+  const box = document.getElementById(`calc_${modId}`);
+  if (!box) return;
+  if (!items || items.length === 0) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="inline-flex">
+      <span class="small">💱 換算成：</span>
+      <select id="calcCurrency_${modId}" style="width:100px">${currencyOptions('HKD')}</select>
+      <button class="mini" onclick="runCalc('${modId}')">計算總額</button>
+    </div>
+    <div id="calcResult_${modId}" class="small" style="margin-top:6px"></div>
+  `;
 }
 
-async function addCatExpense(){
-  const itemEl = document.getElementById('catItem');
-  const amountEl = document.getElementById('catAmount');
-  const dateEl = document.getElementById('catDate');
-  const msgEl = document.getElementById('catMsg');
+async function runCalc(modId){
+  const targetCurrency = document.getElementById(`calcCurrency_${modId}`).value;
+  const { data: items } = await sb.from('expense_items').select('amount,currency').eq('module_id', modId);
+  const resultEl = document.getElementById(`calcResult_${modId}`);
+  resultEl.innerText = '計算中...';
 
-  const item = itemEl.value.trim();
-  const amount = amountEl.value;
-  const date = dateEl.value;
-
-  if (!item) { msgEl.innerText = "請填寫項目"; return; }
-  if (!date) { msgEl.innerText = "請選擇日期"; return; }
-
-  const { error } = await sb.from('cat_expenses').insert({ item, amount: parseFloat(amount)||0, date, user_id: currentUser.id });
-  if (error) { msgEl.innerText = "新增失敗：" + error.message; console.error(error); return; }
-
-  msgEl.innerText = "新增成功！";
-  itemEl.value=''; amountEl.value=''; dateEl.value='';
-  await refreshCatExpenses();
-}
-
-async function deleteCatExpense(id){
-  if(!confirm('確定刪除這筆記錄？')) return;
-  const { error } = await sb.from('cat_expenses').delete().eq('id', id);
-  if (error) { alert("刪除失敗：" + error.message); return; }
-  await refreshCatExpenses();
-}
-
-// ===== CUSTOM CATEGORIES =====
-async function refreshCustomCategories(){
-  const { data, error } = await sb.from('custom_categories').select('*').is('household_id', null).eq('user_id', currentUser.id);
-  if (error) { console.error(error); return; }
-  document.getElementById('customCategoriesList').innerHTML = (data||[]).map(c=>`
-    <div class="row">
-      <span>${c.icon||'📌'} ${c.name}</span>
-      <button class="danger" onclick="deleteCustomCategory('${c.id}')">🗑️ 刪除</button>
-    </div>`).join('');
-}
-
-async function addCustomCategory(householdId){
-  const nameEl = document.getElementById(householdId ? 'hdNewCatName' : 'newCatName');
-  const name = nameEl.value.trim();
-  const msgEl = document.getElementById('customCatMsg');
-  if(!name) { if(msgEl) msgEl.innerText = "請填寫分類名稱"; return; }
-  const { error } = await sb.from('custom_categories').insert({ name, user_id: currentUser.id, household_id: householdId });
-  if (error) { if(msgEl) msgEl.innerText = "新增失敗：" + error.message; console.error(error); return; }
-  nameEl.value='';
-  if (householdId) await refreshHouseholdCategories(householdId); else await refreshCustomCategories();
-}
-
-async function deleteCustomCategory(id){
-  if(!confirm('確定刪除這個分類？')) return;
-  const { error } = await sb.from('custom_categories').delete().eq('id', id);
-  if (error) { alert("刪除失敗：" + error.message); return; }
-  await refreshCustomCategories();
-  if (currentHouseholdId) await refreshHouseholdCategories(currentHouseholdId);
+  const uniqueCurrencies = [...new Set((items||[]).map(i=>i.currency))];
+  const rates = {};
+  try {
+    for (const cur of uniqueCurrencies) {
+      if (cur === targetCurrency) { rates[cur] = 1; continue; }
+      const res = await fetch(`https://api.frankfurter.app/latest?amount=1&from=${cur}&to=${targetCurrency}`);
+      const data = await res.json();
+      rates[cur] = data.rates?.[targetCurrency] ?? null;
+    }
+    let total = 0;
+    let failed = false;
+    for (const it of (items||[])) {
+      const rate = rates[it.currency];
+      if (rate == null) { failed = true; continue; }
+      total += (it.amount||0) * rate;
+    }
+    resultEl.innerText = `總額約：${total.toFixed(2)} ${targetCurrency}` + (failed ? '（部分幣種暫無匯率資料，未計入）' : '');
+  } catch(e){
+    resultEl.innerText = '匯率查詢失敗，請稍後再試。';
+  }
 }
 
 // ===== HOUSEHOLDS =====
@@ -564,21 +524,21 @@ async function openHousehold(id, name){
   const { data: hd } = await sb.from('households').select('*').eq('id', id).single();
   const banner = document.getElementById('hdBanner');
   if (hd.telegram_bot_username){
-    banner.className='banner ok';
-    banner.innerText = `✅ 群組 Bot 已設定：${hd.telegram_bot_username}`;
+    banner.className='banner ok'; banner.innerText = `✅ 群組 Bot 已設定：${hd.telegram_bot_username}`;
     document.getElementById('hdJoinBotArea').classList.remove('hidden');
     document.getElementById('hdBotUsernameShow').innerText = hd.telegram_bot_username;
     document.getElementById('hdJoinBotBtn').onclick = () => {
       window.open(`https://t.me/${hd.telegram_bot_username}?start=${currentUser.id}_${id}`, '_blank');
     };
   } else {
-    banner.className='banner';
-    banner.innerText = '此群組尚未設定通知 Bot';
+    banner.className='banner'; banner.innerText = '此群組尚未設定通知 Bot';
     document.getElementById('hdJoinBotArea').classList.add('hidden');
   }
 
-  await refreshHouseholdSubscriptions(id);
-  await refreshHouseholdCategories(id);
+  const { data: members } = await sb.from('household_members').select('user_id, role').eq('household_id', id);
+  document.getElementById('hdMembersList').innerHTML = (members||[]).map(m=>`${m.role}: ${m.user_id.substring(0,8)}...`).join('<br>');
+
+  await renderModules('householdModulesArea', id);
 }
 
 function backToHouseholdList(){
@@ -590,16 +550,12 @@ async function setupHouseholdBot(){
   const username = document.getElementById('hdTgUsername').value.trim();
   const token = document.getElementById('hdTgToken').value.trim();
   if (!username || !token) return;
-
   const verifyRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
   const verifyData = await verifyRes.json();
   if (!verifyData.ok) { alert('Token 無效'); return; }
-
   await sb.from('households').update({ telegram_bot_token: token, telegram_bot_username: username }).eq('id', currentHouseholdId);
-
   const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-webhook?mode=household&token=${token}`;
   await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
-
   alert('群組 Bot 部署成功！');
   await openHousehold(currentHouseholdId, document.getElementById('hdName').innerText);
 }
@@ -610,41 +566,15 @@ async function showInviteCode(){
   document.getElementById('inviteCodeShow').innerText = `邀請碼：${code}（7天內有效）`;
 }
 
-async function refreshHouseholdSubscriptions(id){
-  const { data, error } = await sb.from('subscriptions').select('*').eq('household_id', id).order('next_date');
-  if (error) { console.error(error); return; }
-  document.getElementById('hdSubsList').innerHTML = (data||[]).map(s=>`
-    <div class="row">
-      <span>${s.name} - ${s.amount} ${s.currency||''} (到期: ${s.next_date})</span>
-      <button class="danger" onclick="deleteSubscription('${s.id}')">🗑️ 刪除</button>
-    </div>`).join('') || '<p class="small">目前沒有家庭訂閱項目</p>';
-}
-
-async function addHouseholdSubscription(){
-  await addSubscription(currentHouseholdId);
-}
-
-async function refreshHouseholdCategories(id){
-  const { data, error } = await sb.from('custom_categories').select('*').eq('household_id', id);
-  if (error) { console.error(error); return; }
-  document.getElementById('hdCustomCategoriesList').innerHTML = (data||[]).map(c=>`
-    <div class="row">
-      <span>${c.icon||'📌'} ${c.name}</span>
-      <button class="danger" onclick="deleteCustomCategory('${c.id}')">🗑️ 刪除</button>
-    </div>`).join('');
-}
-
-async function addHouseholdCategory(){
-  await addCustomCategory(currentHouseholdId);
-}
-
-sb.auth.getSession().then(({data}) => {
+sb.auth.getSession().then(async ({data}) => {
   if (data.session) {
     currentUser = data.session.user;
+    await ensureUserSettings();
+    await ensureBuiltinModules();
     document.getElementById('authView').classList.add('hidden');
     document.getElementById('appView').classList.remove('hidden');
-    loadPersonalData();
-    loadHouseholds();
+    await loadPersonalData();
+    await loadHouseholds();
   }
 });
 </script>
