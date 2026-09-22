@@ -29,7 +29,7 @@
   .row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; flex-wrap:wrap; }
   .row .left { flex:1; }
   .row .actions { display:flex; align-items:center; }
-  .hidden { display:none; }
+  .hidden { display: none !important; }
   .banner { background:#fef9c3; border-radius:10px; padding:12px; margin-bottom:14px; font-size:14px; }
   .banner.ok { background:#dcfce7; }
   .tutorial { background:#f0f9ff; border-radius:10px; padding:14px; margin-top:10px; font-size:14px; line-height:1.7; }
@@ -197,6 +197,12 @@
     <hr>
     <label class="field-label">或上傳自訂圖片</label>
     <input type="file" id="iconFileInput" accept="image/*">
+    <div id="iconPreviewArea" class="hidden" style="text-align:center;margin-top:10px">
+      <img id="iconPreviewImg" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid #eee">
+      <div class="inline-flex" style="margin-top:10px">
+        <button class="action" style="flex:1" onclick="confirmImageIcon()">✅ 確認使用此圖片</button>
+      </div>
+    </div>
     <div class="inline-flex" style="margin-top:12px">
       <button class="secondary" style="flex:1" onclick="closeIconPicker()">取消</button>
     </div>
@@ -215,11 +221,12 @@ if (SUPABASE_ANON_KEY.includes("填入")) {
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CURRENCIES = ["HKD","USD","CNY","TWD","JPY","EUR","GBP"];
-const EMOJI_CHOICES = ["📌","💳","🐱","🐶","🏠","🚗","💡","💧","🎓","🏥","🛒","🍔","🎮","📱","✈️","🎁","💰","📺","🎵","☂️","🧾","🏋️","💊","🧹","🐾","👶","🧾","📚","🌱","🔧"];
+const EMOJI_CHOICES = ["📌","💳","🐱","🐶","🏠","🚗","💡","💧","🎓","🏥","🛒","🍔","🎮","📱","✈️","🎁","💰","📺","🎵","☂️","🧾","🏋️","💊","🧹","🐾","👶","📚","🌱","🔧"];
 
 let currentUser = null;
 let currentHouseholdId = null;
 let iconPickerTargetModuleId = null;
+let pendingIconDataUrl = null;
 
 function toggleEl(id){ document.getElementById(id).classList.toggle('hidden'); }
 function currencyOptions(selected){
@@ -425,10 +432,15 @@ function openIconPicker(modId, containerId, householdId){
   const grid = document.getElementById('emojiGrid');
   grid.innerHTML = EMOJI_CHOICES.map(e=>`<button class="emoji-opt" onclick="selectEmojiIcon('${e}')">${e}</button>`).join('');
   document.getElementById('iconFileInput').value = '';
+  document.getElementById('iconPreviewArea').classList.add('hidden');
+  pendingIconDataUrl = null;
   document.getElementById('iconPickerModal').classList.remove('hidden');
 }
 function closeIconPicker(){
   document.getElementById('iconPickerModal').classList.add('hidden');
+  document.getElementById('iconPreviewArea').classList.add('hidden');
+  document.getElementById('iconFileInput').value = '';
+  pendingIconDataUrl = null;
   iconPickerTargetModuleId = null;
 }
 async function selectEmojiIcon(emoji){
@@ -441,13 +453,19 @@ async function selectEmojiIcon(emoji){
 document.getElementById('iconFileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file || !iconPickerTargetModuleId) return;
-  const dataUrl = await resizeImageToDataUrl(file, 64, 64);
+  pendingIconDataUrl = await resizeImageToDataUrl(file, 64, 64);
+  document.getElementById('iconPreviewImg').src = pendingIconDataUrl;
+  document.getElementById('iconPreviewArea').classList.remove('hidden');
+});
+async function confirmImageIcon(){
+  if (!pendingIconDataUrl || !iconPickerTargetModuleId) return;
   const { modId, containerId, householdId } = iconPickerTargetModuleId;
-  const { error } = await sb.from('expense_modules').update({ icon_image: dataUrl, icon: null }).eq('id', modId);
+  const { error } = await sb.from('expense_modules').update({ icon_image: pendingIconDataUrl, icon: null }).eq('id', modId);
   if (error) { alert('上傳圖示失敗：' + error.message); return; }
+  pendingIconDataUrl = null;
   closeIconPicker();
   await renderModules(containerId, householdId === 'null' ? null : householdId);
-});
+}
 function resizeImageToDataUrl(file, w, h){
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -479,7 +497,7 @@ async function refreshItems(modId){
         ${it.reminder_enabled ? `<span class="badge">提醒: ${(it.reminder_days||[]).join(',')}天前</span>` : ''}
       </div>
       <div class="actions">
-        <button class="warn mini-action" onclick="testReminderNow('${it.id}')">⚡ 立即提醒</button>
+        <button class="warn mini-action" onclick="testReminderNow('${it.id}', event)">⚡ 立即提醒</button>
         <button class="info mini-action" onclick="toggleEl('reminderPanel_${it.id}')">🔔 提醒</button>
         <button class="danger mini-action" onclick="deleteItem('${it.id}','${modId}')">🗑️ 刪除</button>
       </div>
@@ -503,8 +521,8 @@ async function refreshItems(modId){
   renderCalc(modId, items);
 }
 
-async function testReminderNow(itemId){
-  const btn = event.target;
+async function testReminderNow(itemId, evt){
+  const btn = evt.currentTarget;
   const originalText = btn.innerText;
   btn.innerText = '發送中...';
   btn.disabled = true;
