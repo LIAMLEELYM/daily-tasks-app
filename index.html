@@ -213,7 +213,7 @@ if (SUPABASE_ANON_KEY.includes("填入")) {
   });
 }
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentUser = null;
 let currentHouseholdId = null;
@@ -224,7 +224,7 @@ async function signup(){
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
   if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({ email, password });
   document.getElementById('authMsg').innerText = error ? error.message : "註冊成功！請檢查Email確認信，確認後回來登入。";
 }
 
@@ -232,7 +232,7 @@ async function login(){
   const email = document.getElementById('authEmail').value;
   const password = document.getElementById('authPassword').value;
   if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
   if (error) { document.getElementById('authMsg').innerText = error.message; return; }
   currentUser = data.user;
   await ensureUserSettings();
@@ -243,14 +243,14 @@ async function login(){
 }
 
 async function logout(){
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   location.reload();
 }
 
 async function ensureUserSettings(){
-  const { data } = await supabase.from('user_settings').select('*').eq('user_id', currentUser.id).maybeSingle();
+  const { data } = await sb.from('user_settings').select('*').eq('user_id', currentUser.id).maybeSingle();
   if (!data) {
-    await supabase.from('user_settings').insert({ user_id: currentUser.id });
+    await sb.from('user_settings').insert({ user_id: currentUser.id });
   }
 }
 
@@ -279,7 +279,7 @@ async function setupPersonalBot(){
   const verifyData = await verifyRes.json();
   if (!verifyData.ok) { msgEl.innerText = "Token 無效，請重新確認"; return; }
 
-  await supabase.from('user_settings').update({
+  await sb.from('user_settings').update({
     telegram_bot_token: token,
     telegram_bot_username: username,
     display_name: nickname
@@ -292,7 +292,7 @@ async function setupPersonalBot(){
 }
 
 async function checkPersonalBotStatus(){
-  const { data } = await supabase.from('user_settings').select('telegram_opted_in, telegram_bot_username, email_opted_in').eq('user_id', currentUser.id).maybeSingle();
+  const { data } = await sb.from('user_settings').select('telegram_opted_in, telegram_bot_username, email_opted_in').eq('user_id', currentUser.id).maybeSingle();
   const banner = document.getElementById('telegramBanner');
   if (data?.telegram_opted_in) {
     banner.className = 'banner ok';
@@ -303,7 +303,7 @@ async function checkPersonalBotStatus(){
 
 async function toggleEmail(){
   const checked = document.getElementById('emailToggle').checked;
-  await supabase.from('user_settings').update({ email_opted_in: checked }).eq('user_id', currentUser.id);
+  await sb.from('user_settings').update({ email_opted_in: checked }).eq('user_id', currentUser.id);
 }
 
 async function loadPersonalData(){
@@ -315,7 +315,7 @@ async function loadPersonalData(){
 }
 
 async function loadHiddenModules(){
-  const { data } = await supabase.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
+  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
   const hidden = data?.hidden_modules || [];
   document.getElementById('subsCard').classList.toggle('hidden', hidden.includes('subscriptions'));
   document.getElementById('catCard').classList.toggle('hidden', hidden.includes('cat_expenses'));
@@ -325,23 +325,23 @@ async function loadHiddenModules(){
 
 async function hideModule(mod){
   if(!confirm('確定要隱藏此模塊嗎？資料不會被刪除，可隨時恢復。')) return;
-  const { data } = await supabase.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
+  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
   const hidden = new Set(data?.hidden_modules || []);
   hidden.add(mod);
-  await supabase.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
+  await sb.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
   await loadHiddenModules();
 }
 
 async function unhideModule(mod){
-  const { data } = await supabase.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
+  const { data } = await sb.from('user_settings').select('hidden_modules').eq('user_id', currentUser.id).maybeSingle();
   const hidden = new Set(data?.hidden_modules || []);
   hidden.delete(mod);
-  await supabase.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
+  await sb.from('user_settings').update({ hidden_modules: Array.from(hidden) }).eq('user_id', currentUser.id);
   await loadHiddenModules();
 }
 
 async function refreshSubscriptions(){
-  const { data } = await supabase.from('subscriptions').select('*').is('household_id', null).eq('user_id', currentUser.id).order('next_date');
+  const { data } = await sb.from('subscriptions').select('*').is('household_id', null).eq('user_id', currentUser.id).order('next_date');
   document.getElementById('subsList').innerHTML = (data||[]).map(s=>`
     <div class="row">
       <span>${s.name} - ${s.amount} ${s.currency} (到期: ${s.next_date})</span>
@@ -355,7 +355,7 @@ async function addSubscription(householdId){
   const date = document.getElementById(householdId ? 'hdSubDate' : 'subDate').value;
   const reminderStr = document.getElementById(householdId ? 'hdSubReminder' : 'subReminder').value;
   const reminderDays = reminderStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
-  await supabase.from('subscriptions').insert({
+  await sb.from('subscriptions').insert({
     name, amount: parseFloat(amount)||0, next_date: date,
     reminder_days: reminderDays, user_id: currentUser.id,
     household_id: householdId
@@ -365,13 +365,13 @@ async function addSubscription(householdId){
 
 async function deleteSubscription(id){
   if(!confirm('確定刪除這筆訂閱？')) return;
-  await supabase.from('subscriptions').delete().eq('id', id);
+  await sb.from('subscriptions').delete().eq('id', id);
   await refreshSubscriptions();
   if (currentHouseholdId) await refreshHouseholdSubscriptions(currentHouseholdId);
 }
 
 async function refreshCatExpenses(){
-  const { data } = await supabase.from('cat_expenses').select('*').eq('user_id', currentUser.id).order('date', {ascending:false});
+  const { data } = await sb.from('cat_expenses').select('*').eq('user_id', currentUser.id).order('date', {ascending:false});
   document.getElementById('catList').innerHTML = (data||[]).map(c=>`
     <div class="row">
       <span>${c.item} - ${c.amount} (${c.date})</span>
@@ -383,18 +383,18 @@ async function addCatExpense(){
   const item = document.getElementById('catItem').value;
   const amount = document.getElementById('catAmount').value;
   const date = document.getElementById('catDate').value;
-  await supabase.from('cat_expenses').insert({ item, amount: parseFloat(amount)||0, date, user_id: currentUser.id });
+  await sb.from('cat_expenses').insert({ item, amount: parseFloat(amount)||0, date, user_id: currentUser.id });
   await refreshCatExpenses();
 }
 
 async function deleteCatExpense(id){
   if(!confirm('確定刪除這筆記錄？')) return;
-  await supabase.from('cat_expenses').delete().eq('id', id);
+  await sb.from('cat_expenses').delete().eq('id', id);
   await refreshCatExpenses();
 }
 
 async function refreshCustomCategories(){
-  const { data } = await supabase.from('custom_categories').select('*').is('household_id', null).eq('user_id', currentUser.id);
+  const { data } = await sb.from('custom_categories').select('*').is('household_id', null).eq('user_id', currentUser.id);
   document.getElementById('customCategoriesList').innerHTML = (data||[]).map(c=>`
     <div class="row">
       <span>${c.icon} ${c.name}</span>
@@ -405,19 +405,19 @@ async function refreshCustomCategories(){
 async function addCustomCategory(householdId){
   const name = document.getElementById(householdId ? 'hdNewCatName' : 'newCatName').value;
   if(!name) return;
-  await supabase.from('custom_categories').insert({ name, user_id: currentUser.id, household_id: householdId });
+  await sb.from('custom_categories').insert({ name, user_id: currentUser.id, household_id: householdId });
   if (householdId) await refreshHouseholdCategories(householdId); else await refreshCustomCategories();
 }
 
 async function deleteCustomCategory(id){
   if(!confirm('確定刪除這個分類？')) return;
-  await supabase.from('custom_categories').delete().eq('id', id);
+  await sb.from('custom_categories').delete().eq('id', id);
   await refreshCustomCategories();
   if (currentHouseholdId) await refreshHouseholdCategories(currentHouseholdId);
 }
 
 async function loadHouseholds(){
-  const { data: memberships } = await supabase.from('household_members').select('household_id, role, households(id,name,telegram_bot_username)').eq('user_id', currentUser.id);
+  const { data: memberships } = await sb.from('household_members').select('household_id, role, households(id,name,telegram_bot_username)').eq('user_id', currentUser.id);
   const listEl = document.getElementById('householdList');
   listEl.innerHTML = (memberships||[]).map(m=>`
     <div class="group-card" onclick="openHousehold('${m.households.id}','${m.households.name}')">
@@ -429,18 +429,18 @@ async function loadHouseholds(){
 async function createHousehold(){
   const name = document.getElementById('newHouseholdName').value;
   if(!name) return;
-  const { data, error } = await supabase.from('households').insert({ name, created_by: currentUser.id }).select().single();
+  const { data, error } = await sb.from('households').insert({ name, created_by: currentUser.id }).select().single();
   if (error) { document.getElementById('householdMsg').innerText = error.message; return; }
-  await supabase.from('household_members').insert({ household_id: data.id, user_id: currentUser.id, role: 'owner' });
+  await sb.from('household_members').insert({ household_id: data.id, user_id: currentUser.id, role: 'owner' });
   document.getElementById('householdMsg').innerText = '群組建立成功！';
   await loadHouseholds();
 }
 
 async function joinHousehold(){
   const code = document.getElementById('joinCode').value.trim();
-  const { data: invite, error } = await supabase.from('household_invites').select('*').eq('invite_code', code).maybeSingle();
+  const { data: invite, error } = await sb.from('household_invites').select('*').eq('invite_code', code).maybeSingle();
   if (error || !invite) { document.getElementById('householdMsg').innerText = '邀請碼無效'; return; }
-  await supabase.from('household_members').insert({ household_id: invite.household_id, user_id: currentUser.id, role: 'member' });
+  await sb.from('household_members').insert({ household_id: invite.household_id, user_id: currentUser.id, role: 'member' });
   document.getElementById('householdMsg').innerText = '加入成功！';
   await loadHouseholds();
 }
@@ -450,7 +450,7 @@ async function openHousehold(id, name){
   document.getElementById('hdName').innerText = name;
   document.getElementById('householdDetail').classList.remove('hidden');
 
-  const { data: hd } = await supabase.from('households').select('*').eq('id', id).single();
+  const { data: hd } = await sb.from('households').select('*').eq('id', id).single();
   const banner = document.getElementById('hdBanner');
   if (hd.telegram_bot_username){
     banner.className='banner ok';
@@ -480,7 +480,7 @@ async function setupHouseholdBot(){
   const verifyData = await verifyRes.json();
   if (!verifyData.ok) { alert('Token 無效'); return; }
 
-  await supabase.from('households').update({ telegram_bot_token: token, telegram_bot_username: username }).eq('id', currentHouseholdId);
+  await sb.from('households').update({ telegram_bot_token: token, telegram_bot_username: username }).eq('id', currentHouseholdId);
 
   const webhookUrl = `${SUPABASE_URL}/functions/v1/telegram-webhook?mode=household&token=${token}`;
   await fetch(`https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
@@ -491,12 +491,12 @@ async function setupHouseholdBot(){
 
 async function showInviteCode(){
   const code = Math.random().toString(36).substring(2, 10);
-  await supabase.from('household_invites').insert({ household_id: currentHouseholdId, invite_code: code, created_by: currentUser.id });
+  await sb.from('household_invites').insert({ household_id: currentHouseholdId, invite_code: code, created_by: currentUser.id });
   document.getElementById('inviteCodeShow').innerText = `邀請碼：${code}（7天內有效）`;
 }
 
 async function refreshHouseholdSubscriptions(id){
-  const { data } = await supabase.from('subscriptions').select('*').eq('household_id', id).order('next_date');
+  const { data } = await sb.from('subscriptions').select('*').eq('household_id', id).order('next_date');
   document.getElementById('hdSubsList').innerHTML = (data||[]).map(s=>`
     <div class="row">
       <span>${s.name} - ${s.amount} ${s.currency} (到期: ${s.next_date})</span>
@@ -509,7 +509,7 @@ async function addHouseholdSubscription(){
 }
 
 async function refreshHouseholdCategories(id){
-  const { data } = await supabase.from('custom_categories').select('*').eq('household_id', id);
+  const { data } = await sb.from('custom_categories').select('*').eq('household_id', id);
   document.getElementById('hdCustomCategoriesList').innerHTML = (data||[]).map(c=>`
     <div class="row">
       <span>${c.icon} ${c.name}</span>
@@ -521,7 +521,7 @@ async function addHouseholdCategory(){
   await addCustomCategory(currentHouseholdId);
 }
 
-supabase.auth.getSession().then(({data}) => {
+sb.auth.getSession().then(({data}) => {
   if (data.session) {
     currentUser = data.session.user;
     document.getElementById('authView').classList.add('hidden');
