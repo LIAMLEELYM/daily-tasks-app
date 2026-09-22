@@ -38,10 +38,20 @@
   .group-card { border:1px solid #f3d9e7; border-radius:12px; padding:14px; margin-bottom:12px; cursor:pointer; }
   .group-card:hover { background:#fdf2f8; }
   .small { font-size:12px; color:#888; }
-  .reminder-panel { background:#fdf4ff; border-radius:8px; padding:10px; margin:6px 0; font-size:13px; width:100%; }
+  .reminder-panel { background:#fdf4ff; border-radius:8px; padding:12px; margin:6px 0; font-size:13px; width:100%; }
   .calc-box { background:#f0fdf4; border-radius:10px; padding:12px; margin-top:10px; }
   .inline-flex { display:flex; gap:8px; align-items:center; }
   .inline-flex input, .inline-flex select { margin:0; }
+
+  /* Toggle switch */
+  .switch-row { display:flex; align-items:center; gap:10px; margin:10px 0; }
+  .switch { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#e5e7eb; transition:.2s; border-radius:24px; }
+  .slider:before { position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px; background-color:white; transition:.2s; border-radius:50%; }
+  input:checked + .slider { background-color:#ec4899; }
+  input:checked + .slider:before { transform:translateX(20px); }
+  .switch-label { font-size:14px; color:#333; }
 </style>
 </head>
 <body>
@@ -242,7 +252,7 @@ function switchTab(tab){
   }
 }
 
-// ===== TELEGRAM / EMAIL (unchanged logic) =====
+// ===== TELEGRAM / EMAIL =====
 async function setupPersonalBot(){
   const username = document.getElementById('tgUsername').value.trim();
   const token = document.getElementById('tgToken').value.trim();
@@ -288,7 +298,7 @@ async function toggleEmail(){
   await checkPersonalBotStatus();
 }
 
-// ===== MODULES & ITEMS (core new logic) =====
+// ===== MODULES & ITEMS =====
 async function loadPersonalData(){
   await checkPersonalBotStatus();
   await renderModules('personalModulesArea', null);
@@ -326,12 +336,23 @@ async function renderModules(containerId, householdId){
           <select id="currency_${mod.id}">${currencyOptions('HKD')}</select>
         </div>
       </div>
-      <label class="field-label">日期</label>
+      <label class="field-label">開支日期</label>
       <input id="date_${mod.id}" type="date">
-      <label class="inline-flex" style="font-size:13px;color:#333;font-weight:normal">
-        <input type="checkbox" id="reminderToggle_${mod.id}" style="width:auto" onchange="toggleReminderInput('${mod.id}')"> 需要到期提醒
-      </label>
-      <input id="reminderDays_${mod.id}" class="hidden" placeholder="希望到期前多久提醒您（天，例如 7,30）">
+
+      <div class="switch-row">
+        <label class="switch">
+          <input type="checkbox" id="reminderToggle_${mod.id}" onchange="toggleReminderInput('${mod.id}')">
+          <span class="slider"></span>
+        </label>
+        <span class="switch-label">需要到期提醒</span>
+      </div>
+      <div id="reminderFields_${mod.id}" class="hidden">
+        <label class="field-label">到期日期</label>
+        <input id="dueDate_${mod.id}" type="date">
+        <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
+        <input id="reminderDays_${mod.id}" placeholder="例如 7,30" value="7">
+      </div>
+
       <button class="action" onclick="addItem('${mod.id}', ${householdId?`'${householdId}'`:null})">新增一筆</button>
       <div id="itemMsg_${mod.id}" class="small"></div>
     `;
@@ -341,7 +362,7 @@ async function renderModules(containerId, householdId){
 }
 
 function toggleReminderInput(modId){
-  document.getElementById(`reminderDays_${modId}`).classList.toggle('hidden');
+  document.getElementById(`reminderFields_${modId}`).classList.toggle('hidden');
 }
 
 async function createModule(householdId){
@@ -364,7 +385,7 @@ async function deleteModule(modId, containerId, householdId){
 }
 
 async function refreshItems(modId){
-  const { data: items, error } = await sb.from('expense_items').select('*').eq('module_id', modId).order('item_date', {ascending:true, nullsFirst:false});
+  const { data: items, error } = await sb.from('expense_items').select('*').eq('module_id', modId).order('created_at', {ascending:true});
   const listEl = document.getElementById(`items_${modId}`);
   if (error) { listEl.innerHTML = `<p class="small">${error.message}</p>`; return; }
   if (!items || items.length === 0) { listEl.innerHTML = '<p class="small">目前沒有記錄</p>'; renderCalc(modId, []); return; }
@@ -372,7 +393,9 @@ async function refreshItems(modId){
   listEl.innerHTML = items.map(it => `
     <div class="row">
       <div class="left">
-        <b>${it.name}</b> - ${it.amount} ${it.currency}${it.item_date ? ' (日期: '+it.item_date+')' : ''}
+        <b>${it.name}</b> - ${it.amount} ${it.currency}
+        ${it.item_date ? ' <span class="small">開支日期: '+it.item_date+'</span>' : ''}
+        ${it.due_date ? ' <span class="small">到期日期: '+it.due_date+'</span>' : ''}
         ${it.reminder_enabled ? `<span class="badge">提醒: ${(it.reminder_days||[]).join(',')}天前</span>` : ''}
       </div>
       <div class="actions">
@@ -380,10 +403,17 @@ async function refreshItems(modId){
         <button class="danger" onclick="deleteItem('${it.id}','${modId}')">🗑️ 刪除</button>
       </div>
       <div id="reminderPanel_${it.id}" class="reminder-panel hidden">
-        <label class="inline-flex" style="font-weight:normal">
-          <input type="checkbox" id="renable_${it.id}" style="width:auto" ${it.reminder_enabled?'checked':''}> 啟用到期提醒
-        </label>
-        <input id="rdays_${it.id}" placeholder="提醒天數，例如 7,30" value="${(it.reminder_days||[]).join(',')}">
+        <div class="switch-row">
+          <label class="switch">
+            <input type="checkbox" id="renable_${it.id}" ${it.reminder_enabled?'checked':''}>
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">啟用到期提醒</span>
+        </div>
+        <label class="field-label">到期日期</label>
+        <input id="rduedate_${it.id}" type="date" value="${it.due_date||''}">
+        <label class="field-label">希望到期前多久提醒您（天）</label>
+        <input id="rdays_${it.id}" placeholder="例如 7,30" value="${(it.reminder_days||[]).join(',')}">
         <button class="action" onclick="saveReminder('${it.id}','${modId}')">儲存提醒設定</button>
       </div>
     </div>
@@ -394,10 +424,12 @@ async function refreshItems(modId){
 
 async function saveReminder(itemId, modId){
   const enabled = document.getElementById(`renable_${itemId}`).checked;
+  const dueDate = document.getElementById(`rduedate_${itemId}`).value;
   const daysStr = document.getElementById(`rdays_${itemId}`).value;
   const days = daysStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
+  if (enabled && !dueDate) { alert('啟用提醒需要填寫到期日期'); return; }
   const { error } = await sb.from('expense_items').update({
-    reminder_enabled: enabled, reminder_days: days.length ? days : [7]
+    reminder_enabled: enabled, due_date: dueDate || null, reminder_days: days.length ? days : [7]
   }).eq('id', itemId);
   if (error) { alert('儲存失敗：' + error.message); return; }
   await refreshItems(modId);
@@ -409,15 +441,18 @@ async function addItem(modId, householdId){
   const currency = document.getElementById(`currency_${modId}`).value;
   const date = document.getElementById(`date_${modId}`).value;
   const reminderEnabled = document.getElementById(`reminderToggle_${modId}`).checked;
+  const dueDate = document.getElementById(`dueDate_${modId}`).value;
   const daysStr = document.getElementById(`reminderDays_${modId}`).value;
   const days = daysStr.split(',').map(x=>parseInt(x.trim())).filter(x=>!isNaN(x));
   const msgEl = document.getElementById(`itemMsg_${modId}`);
 
   if (!name) { msgEl.innerText = "請填寫名稱"; return; }
+  if (reminderEnabled && !dueDate) { msgEl.innerText = "啟用到期提醒時，請填寫到期日期"; return; }
 
   const payload = {
     module_id: modId, name, amount: parseFloat(amount)||0, currency,
     item_date: date || null,
+    due_date: reminderEnabled ? dueDate : (dueDate || null),
     reminder_enabled: reminderEnabled,
     reminder_days: days.length ? days : [7],
     user_id: currentUser.id,
@@ -429,6 +464,7 @@ async function addItem(modId, householdId){
   document.getElementById(`name_${modId}`).value='';
   document.getElementById(`amount_${modId}`).value='';
   document.getElementById(`date_${modId}`).value='';
+  document.getElementById(`dueDate_${modId}`).value='';
   await refreshItems(modId);
 }
 
@@ -439,7 +475,7 @@ async function deleteItem(itemId, modId){
   await refreshItems(modId);
 }
 
-// ===== CURRENCY CONVERTER CALCULATOR =====
+// ===== CURRENCY CONVERTER =====
 async function renderCalc(modId, items){
   const box = document.getElementById(`calc_${modId}`);
   if (!box) return;
@@ -465,7 +501,7 @@ async function runCalc(modId){
   try {
     for (const cur of uniqueCurrencies) {
       if (cur === targetCurrency) { rates[cur] = 1; continue; }
-      const res = await fetch(`https://api.frankfurter.app/latest?amount=1&from=${cur}&to=${targetCurrency}`);
+      const res = await fetch(`https://open.er-api.com/v6/latest/${cur}`);
       const data = await res.json();
       rates[cur] = data.rates?.[targetCurrency] ?? null;
     }
@@ -478,7 +514,7 @@ async function runCalc(modId){
     }
     resultEl.innerText = `總額約：${total.toFixed(2)} ${targetCurrency}` + (failed ? '（部分幣種暫無匯率資料，未計入）' : '');
   } catch(e){
-    resultEl.innerText = '匯率查詢失敗，請稍後再試。';
+    resultEl.innerText = '匯率查詢失敗，請稍後再試：' + e.message;
   }
 }
 
@@ -500,8 +536,10 @@ async function createHousehold(){
   if(!name) { msgEl.innerText = "請填寫群組名稱"; return; }
   const { data, error } = await sb.from('households').insert({ name, created_by: currentUser.id }).select().single();
   if (error) { msgEl.innerText = error.message; return; }
-  await sb.from('household_members').insert({ household_id: data.id, user_id: currentUser.id, role: 'owner' });
+  const { error: memErr } = await sb.from('household_members').insert({ household_id: data.id, user_id: currentUser.id, role: 'owner' });
+  if (memErr) { msgEl.innerText = "群組已建立但加入成員失敗：" + memErr.message; return; }
   msgEl.innerText = '群組建立成功！';
+  document.getElementById('newHouseholdName').value='';
   await loadHouseholds();
 }
 
