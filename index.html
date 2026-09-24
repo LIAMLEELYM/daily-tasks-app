@@ -143,12 +143,15 @@
   button.mini-action { border:none; padding:8px 12px; border-radius:9px; cursor:pointer; font-size:13px; font-weight:600; margin-left:0; min-width:64px; text-align:center; transition: filter .2s; }
   button.mini-action:hover { filter: brightness(1.08); }
 
-  .row {
+  .row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .hidden { display: none !important; }
+
+  .expense-row {
     display:flex; flex-direction:column; gap:10px;
     padding:14px 4px; border-bottom:1px solid rgba(200,140,50,0.15);
   }
-  .row-main { display:flex; flex-direction:column; gap:6px; width:100%; }
-  .row-title-line {
+  .expense-row-main { display:flex; flex-direction:column; gap:6px; width:100%; }
+  .expense-row-title-line {
     display:flex; justify-content:space-between; align-items:baseline;
     flex-wrap:wrap; gap:6px 12px;
   }
@@ -157,17 +160,16 @@
     font-size:14px; font-weight:600; color: var(--amber-deep);
     font-family: 'SF Mono', Consolas, monospace; white-space:nowrap;
   }
-  .row-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .expense-row-meta { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
   .meta-tag {
     font-size:12px; line-height:1.4; color: var(--text-dim2);
     background: rgba(200,140,50,0.08); border-radius:8px; padding:3px 9px;
     white-space:nowrap;
   }
-  .row .actions {
+  .expense-row .actions {
     display:flex; align-items:center; flex-wrap:wrap; gap:6px; width:100%;
   }
-  .row .actions .mini-action { flex:1 1 auto; min-width:88px; margin-left:0; }
-  .hidden { display: none !important; }
+  .expense-row .actions .mini-action { flex:1 1 auto; min-width:88px; margin-left:0; }
 
   .collapse-toggle {
     display:flex; justify-content:space-between; align-items:center;
@@ -190,6 +192,32 @@
   }
   button.secondary, button.action {
     display:block; width:100%; box-sizing:border-box; text-align:center; margin:6px 0;
+  }
+
+  .topbar { justify-content:space-between; align-items:center; }
+  .avatar-btn {
+    width:44px; height:44px; border-radius:50%; border:2px solid var(--card-border);
+    background: linear-gradient(135deg, var(--amber-soft), rgba(255,255,255,0.6));
+    cursor:pointer; padding:0; overflow:hidden; display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700; color: var(--amber-deep); flex-shrink:0;
+    box-shadow: 0 2px 8px rgba(200,140,50,0.2); transition: box-shadow .2s, transform .15s;
+  }
+  .avatar-btn:hover { box-shadow: 0 0 14px var(--amber-soft); transform: translateY(-1px); }
+  .avatar-btn img { width:100%; height:100%; object-fit:cover; }
+  .profile-avatar-lg {
+    width:88px; height:88px; border-radius:50%; margin:0 auto 14px; overflow:hidden;
+    background: linear-gradient(135deg, var(--amber-soft), rgba(255,255,255,0.6));
+    display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:700;
+    color: var(--amber-deep); border:2px solid var(--card-border);
+  }
+  .profile-avatar-lg img { width:100%; height:100%; object-fit:cover; }
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(30,18,8,0.45); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal-box {
+    background: var(--bg-base); border-radius:18px; padding:22px; max-width:360px; width:100%;
+    box-shadow: 0 12px 40px rgba(80,50,20,0.3); text-align:center; max-height:88vh; overflow-y:auto;
   }
 
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
@@ -305,7 +333,8 @@
 
   <div id="appView" class="hidden">
     <div class="topbar">
-      <button class="secondary" onclick="logout()">登出</button>
+      <button id="profileAvatarBtn" class="avatar-btn" onclick="openProfileModal()" title="編輯個人資料">🙂</button>
+      <button class="secondary" onclick="logout()" style="width:auto">登出</button>
     </div>
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('personal')">👤 我的專屬</button>
@@ -313,15 +342,6 @@
     </div>
 
     <div id="personalTab">
-
-      <div class="card">
-        <h3>🙋 我的暱稱</h3>
-        <div class="inline-flex">
-          <input id="myNicknameInput" placeholder="輸入你的暱稱" style="flex:1">
-          <button class="action" onclick="saveMyNickname()" style="width:auto">儲存</button>
-        </div>
-        <div id="nicknameMsg" class="small"></div>
-      </div>
 
       <div class="card">
         <h3>🔔 到期通知設定</h3>
@@ -400,20 +420,28 @@
             <button class="secondary" onclick="backToHouseholdList()">← 返回群組列表</button>
           </div>
           <div id="hdBanner" class="banner">此群組尚未設定通知 Bot</div>
-          <button class="secondary" onclick="toggleEl('hdBotSetup')">📱 設定群組 Telegram 通知</button>
-          <span class="info-icon" onclick="toggleEl('hdBotTutorial')">ℹ️ 查看教學</span>
-          <div id="hdBotTutorial" class="tutorial hidden">
-            跟個人 Bot 設定方式相同：搜尋 @BotFather → /newbot → 依提示命名 → 取得 API Token，填入下方。
+
+          <div class="collapse-toggle" onclick="toggleCollapse(this,'hdNotifPanel')">
+            <span>⚙️ 通知設定</span>
+            <span class="collapse-arrow">▾</span>
           </div>
-          <div id="hdBotSetup" class="hidden">
-            <input id="hdTgUsername" placeholder="Bot 使用者名稱">
-            <input id="hdTgToken" placeholder="Bot API Token">
-            <button class="action" onclick="setupHouseholdBot()">確認並部署群組 Bot</button>
+          <div id="hdNotifPanel" class="collapse-panel hidden">
+            <button class="secondary" onclick="toggleEl('hdBotSetup')">📱 設定群組 Telegram 通知</button>
+            <span class="info-icon" onclick="toggleEl('hdBotTutorial')">ℹ️ 查看教學</span>
+            <div id="hdBotTutorial" class="tutorial hidden">
+              跟個人 Bot 設定方式相同：搜尋 @BotFather → /newbot → 依提示命名 → 取得 API Token，填入下方。
+            </div>
+            <div id="hdBotSetup" class="hidden">
+              <input id="hdTgUsername" placeholder="Bot 使用者名稱">
+              <input id="hdTgToken" placeholder="Bot API Token">
+              <button class="action" onclick="setupHouseholdBot()">確認並部署群組 Bot</button>
+            </div>
+            <div id="hdJoinBotArea" class="hidden" style="margin-top:10px">
+              <p class="small">群組 Bot 已設定：<b id="hdBotUsernameShow"></b></p>
+              <button class="action" id="hdJoinBotBtn">📲 綁定我的通知</button>
+            </div>
           </div>
-          <div id="hdJoinBotArea" class="hidden" style="margin-top:10px">
-            <p class="small">群組 Bot 已設定：<b id="hdBotUsernameShow"></b></p>
-            <button class="action" id="hdJoinBotBtn">📲 綁定我的通知</button>
-          </div>
+
           <hr>
           <button class="secondary" onclick="showInviteCode()">🔗 生成邀請碼</button>
           <div id="inviteCodeShow" class="small"></div>
@@ -449,6 +477,22 @@
     </div>
     <div class="inline-flex" style="margin-top:12px">
       <button class="secondary" style="flex:1" onclick="closeIconPicker()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="profileModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>編輯個人資料</h3>
+    <div id="profileAvatarPreview" class="profile-avatar-lg">🙂</div>
+    <label class="field-label">上傳頭像</label>
+    <input type="file" id="profileAvatarInput" accept="image/*">
+    <label class="field-label">暱稱</label>
+    <input id="profileNicknameInput" placeholder="輸入你的暱稱">
+    <div id="profileModalMsg" class="small"></div>
+    <div class="inline-flex" style="margin-top:12px">
+      <button class="secondary" style="flex:1" onclick="closeProfileModal()">取消</button>
+      <button class="action" style="flex:1" onclick="saveProfile()">✅ 儲存</button>
     </div>
   </div>
 </div>
@@ -535,19 +579,65 @@ async function ensureProfile(){
   await loadMyNickname();
 }
 
+let currentProfile = { nickname: '', avatar_image: null };
+let pendingAvatarDataUrl = null;
+
 async function loadMyNickname(){
-  const { data } = await sb.from('profiles').select('nickname').eq('user_id', currentUser.id).maybeSingle();
-  document.getElementById('myNicknameInput').value = data?.nickname || '';
+  const { data } = await sb.from('profiles').select('nickname, avatar_image').eq('user_id', currentUser.id).maybeSingle();
+  currentProfile.nickname = data?.nickname || '';
+  currentProfile.avatar_image = data?.avatar_image || null;
+  renderProfileAvatarBtn();
 }
 
-async function saveMyNickname(){
-  const nickname = document.getElementById('myNicknameInput').value.trim();
-  const msgEl = document.getElementById('nicknameMsg');
+function renderAvatarInto(el, nickname, avatarImage){
+  if (avatarImage) {
+    el.innerHTML = `<img src="${avatarImage}">`;
+  } else {
+    const initial = (nickname || '?').trim().charAt(0).toUpperCase() || '🙂';
+    el.textContent = initial;
+  }
+}
+
+function renderProfileAvatarBtn(){
+  const btn = document.getElementById('profileAvatarBtn');
+  if (btn) renderAvatarInto(btn, currentProfile.nickname, currentProfile.avatar_image);
+}
+
+function openProfileModal(){
+  document.getElementById('profileNicknameInput').value = currentProfile.nickname || '';
+  pendingAvatarDataUrl = null;
+  document.getElementById('profileAvatarInput').value = '';
+  document.getElementById('profileModalMsg').innerText = '';
+  renderAvatarInto(document.getElementById('profileAvatarPreview'), currentProfile.nickname, currentProfile.avatar_image);
+  document.getElementById('profileModal').classList.remove('hidden');
+}
+
+function closeProfileModal(){
+  document.getElementById('profileModal').classList.add('hidden');
+  pendingAvatarDataUrl = null;
+}
+
+document.getElementById('profileAvatarInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  pendingAvatarDataUrl = await resizeImageToDataUrl(file, 160, 160);
+  document.getElementById('profileAvatarPreview').innerHTML = `<img src="${pendingAvatarDataUrl}">`;
+});
+
+async function saveProfile(){
+  const nickname = document.getElementById('profileNicknameInput').value.trim();
+  const msgEl = document.getElementById('profileModalMsg');
   if (!nickname) { msgEl.innerText = "暱稱不能為空"; return; }
-  const { error } = await sb.from('profiles').update({ nickname }).eq('user_id', currentUser.id);
+  const payload = { nickname };
+  if (pendingAvatarDataUrl) payload.avatar_image = pendingAvatarDataUrl;
+  const { error } = await sb.from('profiles').update(payload).eq('user_id', currentUser.id);
   if (error) { msgEl.innerText = "儲存失敗：" + error.message; return; }
-  msgEl.innerText = "已儲存！";
+  currentProfile.nickname = nickname;
+  if (pendingAvatarDataUrl) currentProfile.avatar_image = pendingAvatarDataUrl;
   profileCache = {};
+  renderProfileAvatarBtn();
+  msgEl.innerText = "✅ 已儲存！";
+  setTimeout(closeProfileModal, 700);
 }
 
 async function getProfilesMap(userIds){
@@ -804,13 +894,13 @@ async function refreshItems(modId, isHousehold){
       dueSoon = diff <= 3 && diff >= 0;
     }
     return `
-    <div class="row">
-      <div class="row-main">
-        <div class="row-title-line">
+    <div class="expense-row">
+      <div class="expense-row-main">
+        <div class="expense-row-title-line">
           <b class="item-name">${it.name}</b>
           <span class="item-amount">${it.amount} ${it.currency}</span>
         </div>
-        <div class="row-meta">
+        <div class="expense-row-meta">
           ${it.item_date ? `<span class="meta-tag">📅 開支：${it.item_date}</span>` : ''}
           ${it.due_date ? `<span class="meta-tag">⏰ 到期：${it.due_date}</span>` : ''}
           ${it.reminder_enabled ? `<span class="badge ${dueSoon?'due-soon':''}">🔔 提醒：${(it.reminder_days||[]).join('、')}天前</span>` : ''}
