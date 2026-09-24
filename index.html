@@ -227,6 +227,21 @@
   .calc-select { flex:1 1 100px; min-width:90px; width:auto; margin:0; height:44px; }
   .calc-btn { flex:0 0 auto; width:auto; margin:0; padding:0 18px; height:44px; font-size:14px; white-space:nowrap; background: rgba(28,143,176,0.12); color: var(--sky); border:none; border-radius:9px; cursor:pointer; font-weight:600; }
 
+  .crop-stage {
+    position:relative; width:260px; height:260px; margin:0 auto; border-radius:14px;
+    overflow:hidden; background:#1a1108; touch-action:none; cursor:grab;
+  }
+  .crop-stage:active { cursor:grabbing; }
+  .crop-stage img { position:absolute; user-select:none; -webkit-user-drag:none; will-change:left,top,width,height; }
+  .crop-mask {
+    position:absolute; inset:0; pointer-events:none;
+    box-shadow: 0 0 0 9999px rgba(20,12,6,0.6);
+  }
+  .crop-mask.circle { border-radius:50%; }
+  .crop-mask.square { border-radius:16px; }
+  .crop-controls { display:flex; align-items:center; gap:10px; margin-top:14px; }
+  .crop-controls input[type="range"] { width:100%; margin:0; accent-color: var(--amber-deep); }
+
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
   .banner.ok { background: rgba(31,157,107,0.09); border-color: rgba(31,157,107,0.3); }
   .banner.ok::before { content:"● "; color: var(--mint); animation: pulseDot 1.8s ease-in-out infinite; }
@@ -293,6 +308,7 @@
     button.mini-action { min-width:0; flex:1 1 30%; padding:8px 6px; font-size:12px; }
     .module-title h3 { font-size:15px; }
     .inline-flex > div.currency-col { flex:0 0 80px; }
+    .crop-stage { width:220px; height:220px; }
   }
 </style>
 </head>
@@ -512,6 +528,25 @@
   </div>
 </div>
 
+<div id="cropModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>裁剪圖片</h3>
+    <div id="cropStage" class="crop-stage">
+      <img id="cropImage" src="" alt="">
+      <div id="cropMask" class="crop-mask circle"></div>
+    </div>
+    <div class="crop-controls">
+      <span>🔍</span>
+      <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1">
+    </div>
+    <p class="small">拖曳圖片調整位置，滑動調整縮放</p>
+    <div class="modal-btn-row">
+      <button class="secondary" onclick="closeCropModal()">取消</button>
+      <button class="action" onclick="confirmCrop()">✅ 確認裁剪</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://abvnsqfhefpxdwgkblkx.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFidm5zcWZoZWZweGR3Z2tibGt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAwNTU2OTksImV4cCI6MjEwNTYzMTY5OX0.rdcA-0EPcx7kqEqFq8ZVR0g_d0rqydG1NVtFwAfIjF0";
@@ -644,8 +679,7 @@ function closeProfileModal(){
 document.getElementById('profileAvatarInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  pendingAvatarDataUrl = await resizeImageToDataUrl(file, 160, 160);
-  document.getElementById('profileAvatarPreview').innerHTML = `<img src="${pendingAvatarDataUrl}">`;
+  openCropModal(file, 'avatar');
 });
 
 async function saveProfile(){
@@ -867,9 +901,7 @@ async function selectEmojiIcon(emoji){
 document.getElementById('iconFileInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file || !iconPickerTargetModuleId) return;
-  pendingIconDataUrl = await resizeImageToDataUrl(file, 64, 64);
-  document.getElementById('iconPreviewImg').src = pendingIconDataUrl;
-  document.getElementById('iconPreviewArea').classList.remove('hidden');
+  openCropModal(file, 'icon');
 });
 async function confirmImageIcon(){
   if (!pendingIconDataUrl || !iconPickerTargetModuleId) return;
@@ -894,6 +926,121 @@ function resizeImageToDataUrl(file, w, h){
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+let cropTargetType = null;
+let cropImgNaturalW = 0, cropImgNaturalH = 0;
+let cropBaseScale = 1, cropZoomFactor = 1;
+let cropLeft = 0, cropTop = 0;
+let cropDragging = false, cropDragStartX = 0, cropDragStartY = 0, cropStartLeft = 0, cropStartTop = 0;
+const CROP_STAGE_SIZE = 260;
+
+function openCropModal(file, targetType){
+  cropTargetType = targetType;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const img = new Image();
+    img.onload = () => {
+      cropImgNaturalW = img.naturalWidth;
+      cropImgNaturalH = img.naturalHeight;
+      cropBaseScale = Math.max(CROP_STAGE_SIZE / cropImgNaturalW, CROP_STAGE_SIZE / cropImgNaturalH);
+      cropZoomFactor = 1;
+      document.getElementById('cropZoom').value = 1;
+      const cropImg = document.getElementById('cropImage');
+      cropImg.src = ev.target.result;
+      const mask = document.getElementById('cropMask');
+      mask.className = 'crop-mask ' + (targetType === 'avatar' ? 'circle' : 'square');
+      centerCropImage();
+      renderCropImage();
+      document.getElementById('cropModal').classList.remove('hidden');
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function centerCropImage(){
+  const dispW = cropImgNaturalW * cropBaseScale * cropZoomFactor;
+  const dispH = cropImgNaturalH * cropBaseScale * cropZoomFactor;
+  cropLeft = (CROP_STAGE_SIZE - dispW) / 2;
+  cropTop = (CROP_STAGE_SIZE - dispH) / 2;
+}
+
+function clampCropPosition(){
+  const dispW = cropImgNaturalW * cropBaseScale * cropZoomFactor;
+  const dispH = cropImgNaturalH * cropBaseScale * cropZoomFactor;
+  const minLeft = CROP_STAGE_SIZE - dispW, maxLeft = 0;
+  const minTop = CROP_STAGE_SIZE - dispH, maxTop = 0;
+  cropLeft = Math.min(maxLeft, Math.max(minLeft, cropLeft));
+  cropTop = Math.min(maxTop, Math.max(minTop, cropTop));
+}
+
+function renderCropImage(){
+  const dispW = cropImgNaturalW * cropBaseScale * cropZoomFactor;
+  const dispH = cropImgNaturalH * cropBaseScale * cropZoomFactor;
+  const cropImg = document.getElementById('cropImage');
+  cropImg.style.width = dispW + 'px';
+  cropImg.style.height = dispH + 'px';
+  cropImg.style.left = cropLeft + 'px';
+  cropImg.style.top = cropTop + 'px';
+}
+
+document.getElementById('cropZoom').addEventListener('input', (e) => {
+  cropZoomFactor = parseFloat(e.target.value);
+  clampCropPosition();
+  renderCropImage();
+});
+
+function cropPointerDown(x, y){
+  cropDragging = true;
+  cropDragStartX = x; cropDragStartY = y;
+  cropStartLeft = cropLeft; cropStartTop = cropTop;
+}
+function cropPointerMove(x, y){
+  if (!cropDragging) return;
+  cropLeft = cropStartLeft + (x - cropDragStartX);
+  cropTop = cropStartTop + (y - cropDragStartY);
+  clampCropPosition();
+  renderCropImage();
+}
+function cropPointerUp(){ cropDragging = false; }
+
+(function initCropStageEvents(){
+  const stage = document.getElementById('cropStage');
+  stage.addEventListener('mousedown', (e) => { e.preventDefault(); cropPointerDown(e.clientX, e.clientY); });
+  window.addEventListener('mousemove', (e) => cropPointerMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', cropPointerUp);
+  stage.addEventListener('touchstart', (e) => { const t = e.touches[0]; cropPointerDown(t.clientX, t.clientY); }, { passive:true });
+  stage.addEventListener('touchmove', (e) => { const t = e.touches[0]; cropPointerMove(t.clientX, t.clientY); }, { passive:true });
+  stage.addEventListener('touchend', cropPointerUp);
+})();
+
+function closeCropModal(){
+  document.getElementById('cropModal').classList.add('hidden');
+  cropTargetType = null;
+}
+
+function confirmCrop(){
+  const outputSize = cropTargetType === 'avatar' ? 300 : 128;
+  const scaleRatio = outputSize / CROP_STAGE_SIZE;
+  const dispW = cropImgNaturalW * cropBaseScale * cropZoomFactor;
+  const dispH = cropImgNaturalH * cropBaseScale * cropZoomFactor;
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize; canvas.height = outputSize;
+  const ctx = canvas.getContext('2d');
+  const cropImg = document.getElementById('cropImage');
+  ctx.drawImage(cropImg, cropLeft * scaleRatio, cropTop * scaleRatio, dispW * scaleRatio, dispH * scaleRatio);
+  const dataUrl = canvas.toDataURL('image/png');
+
+  if (cropTargetType === 'avatar') {
+    pendingAvatarDataUrl = dataUrl;
+    document.getElementById('profileAvatarPreview').innerHTML = `<img src="${dataUrl}">`;
+  } else if (cropTargetType === 'icon') {
+    pendingIconDataUrl = dataUrl;
+    document.getElementById('iconPreviewImg').src = dataUrl;
+    document.getElementById('iconPreviewArea').classList.remove('hidden');
+  }
+  closeCropModal();
 }
 
 async function refreshItems(modId, isHousehold){
