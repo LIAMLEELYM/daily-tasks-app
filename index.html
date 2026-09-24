@@ -118,7 +118,7 @@
   label.field-label { display:block; font-size:12px; color: var(--amber-deep); font-weight:600; margin-top:8px; margin-bottom:3px; letter-spacing:0.3px; }
   input, select {
     padding:10px 12px; border-radius:9px; border:1px solid rgba(200,140,50,0.25);
-    margin:2px 0 8px 0; width:100%; background: rgba(255,255,255,0.75); color: var(--text-main);
+    margin:2px 0 8px 0; width:100%; box-sizing:border-box; background: rgba(255,255,255,0.75); color: var(--text-main);
     font-family: inherit; font-size:15px; transition: border-color .2s, box-shadow .2s;
   }
   input::placeholder { color: rgba(58,44,31,0.4); }
@@ -171,16 +171,22 @@
 
   .collapse-toggle {
     display:flex; justify-content:space-between; align-items:center;
-    cursor:pointer; padding:10px 4px; margin-top:4px;
-    border-top:1px solid rgba(200,140,50,0.15);
+    cursor:pointer; padding:12px 14px; margin-top:6px;
+    background: rgba(232,137,31,0.08); border:1px solid var(--card-border); border-radius:12px;
     font-weight:600; color: var(--amber-deep); font-size:14px;
-    user-select:none;
+    user-select:none; transition: background .2s;
   }
-  .collapse-toggle:hover { color: var(--amber); }
+  .collapse-toggle:hover { background: rgba(232,137,31,0.14); }
   .collapse-arrow { transition: transform .25s ease; font-size:13px; }
   .collapse-toggle.open .collapse-arrow { transform: rotate(180deg); }
-  .collapse-panel { padding-top:6px; }
+  .collapse-panel { padding-top:10px; }
   .group-list-wrap { display:flex; flex-direction:column; gap:10px; }
+
+  input[type="date"] {
+    width:100%; max-width:100%; min-width:0; box-sizing:border-box;
+    -webkit-min-logical-width: 0;
+    padding:9px 10px; font-size:14px;
+  }
 
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
   .banner.ok { background: rgba(31,157,107,0.09); border-color: rgba(31,157,107,0.3); }
@@ -212,8 +218,11 @@
   .small { font-size:12px; color: var(--text-dim2); }
   .reminder-panel { background: rgba(255,255,255,0.5); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin:6px 0; font-size:13px; width:100%; }
   .calc-box { background: rgba(31,157,107,0.07); border:1px solid rgba(31,157,107,0.22); border-radius:12px; padding:12px; margin-top:10px; }
-  .inline-flex { display:flex; gap:8px; align-items:center; }
+  .inline-flex { display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap; }
   .inline-flex input, .inline-flex select { margin:0; }
+  .inline-flex > div { min-width:0; }
+  .inline-flex > div.amount-col { flex:1 1 140px; }
+  .inline-flex > div.currency-col { flex:0 0 96px; }
   .member-chip { display:inline-flex; align-items:center; gap:6px; background: rgba(224,112,154,0.1); border:1px solid rgba(224,112,154,0.25); border-radius:999px; padding:5px 12px; margin:3px; font-size:13px; }
   .member-chip .role-tag { color: var(--pink); font-weight:600; font-size:11px; }
 
@@ -245,8 +254,7 @@
     button.mini-action { min-width:0; flex:1 1 30%; padding:8px 6px; font-size:12px; }
     .module-title h3 { font-size:15px; }
     button.action { width:100%; font-size:14px; }
-    .inline-flex { flex-wrap:wrap; }
-    .inline-flex > div { width:100%; }
+    .inline-flex > div.currency-col { flex:0 0 80px; }
   }
 </style>
 </head>
@@ -460,6 +468,18 @@ function toggleCollapse(headerEl, panelId){
   document.getElementById(panelId).classList.toggle('hidden');
   headerEl.classList.toggle('open');
 }
+function collapsePanel(panelId, headerId){
+  const panel = document.getElementById(panelId);
+  const header = headerId ? document.getElementById(headerId) : null;
+  if (panel && !panel.classList.contains('hidden')) panel.classList.add('hidden');
+  if (header) header.classList.remove('open');
+}
+function expandPanel(panelId, headerId){
+  const panel = document.getElementById(panelId);
+  const header = headerId ? document.getElementById(headerId) : null;
+  if (panel) panel.classList.remove('hidden');
+  if (header) header.classList.add('open');
+}
 function currencyOptions(selected){
   return CURRENCIES.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
 }
@@ -630,38 +650,44 @@ async function renderModules(containerId, householdId){
       </div>
       <div id="items_${mod.id}"></div>
       <div class="calc-box" id="calc_${mod.id}"></div>
-      <hr>
-      <label class="field-label">名稱</label>
-      <input id="name_${mod.id}" placeholder="例如：Netflix / 買菜">
-      <div class="inline-flex">
-        <div style="flex:1">
-          <label class="field-label">金額</label>
-          <input id="amount_${mod.id}" type="number" placeholder="0">
-        </div>
-        <div style="width:100px">
-          <label class="field-label">幣種</label>
-          <select id="currency_${mod.id}">${currencyOptions('HKD')}</select>
-        </div>
-      </div>
-      <label class="field-label">開支日期</label>
-      <input id="date_${mod.id}" type="date">
 
-      <div class="switch-row">
-        <label class="switch">
-          <input type="checkbox" id="reminderToggle_${mod.id}" onchange="toggleReminderInput('${mod.id}')">
-          <span class="slider"></span>
-        </label>
-        <span class="switch-label">需要到期提醒</span>
+      <div class="collapse-toggle" id="addToggle_${mod.id}" onclick="toggleCollapse(this,'addForm_${mod.id}')">
+        <span>➕ 新增紀錄</span>
+        <span class="collapse-arrow">▾</span>
       </div>
-      <div id="reminderFields_${mod.id}" class="hidden">
-        <label class="field-label">到期日期</label>
-        <input id="dueDate_${mod.id}" type="date">
-        <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
-        <input id="reminderDays_${mod.id}" placeholder="例如 7,30" value="7">
-      </div>
+      <div id="addForm_${mod.id}" class="collapse-panel hidden">
+        <label class="field-label">名稱</label>
+        <input id="name_${mod.id}" placeholder="例如：Netflix / 買菜">
+        <div class="inline-flex">
+          <div class="amount-col">
+            <label class="field-label">金額</label>
+            <input id="amount_${mod.id}" type="number" placeholder="0">
+          </div>
+          <div class="currency-col">
+            <label class="field-label">幣種</label>
+            <select id="currency_${mod.id}">${currencyOptions('HKD')}</select>
+          </div>
+        </div>
+        <label class="field-label">開支日期</label>
+        <input id="date_${mod.id}" type="date">
 
-      <button class="action" onclick="addItem('${mod.id}', ${householdId?`'${householdId}'`:null})">新增一筆</button>
-      <div id="itemMsg_${mod.id}" class="small"></div>
+        <div class="switch-row">
+          <label class="switch">
+            <input type="checkbox" id="reminderToggle_${mod.id}" onchange="toggleReminderInput('${mod.id}')">
+            <span class="slider"></span>
+          </label>
+          <span class="switch-label">需要到期提醒</span>
+        </div>
+        <div id="reminderFields_${mod.id}" class="hidden">
+          <label class="field-label">到期日期</label>
+          <input id="dueDate_${mod.id}" type="date">
+          <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
+          <input id="reminderDays_${mod.id}" placeholder="例如 7,30" value="7">
+        </div>
+
+        <button class="action" onclick="addItem('${mod.id}', ${householdId?`'${householdId}'`:null})">新增一筆</button>
+        <div id="itemMsg_${mod.id}" class="small"></div>
+      </div>
     `;
     container.appendChild(card);
     await refreshItems(mod.id, !!householdId);
@@ -868,12 +894,19 @@ async function addItem(modId, householdId){
   };
   const { error } = await sb.from('expense_items').insert(payload);
   if (error) { msgEl.innerText = "新增失敗：" + error.message; return; }
-  msgEl.innerText = "新增成功！";
+  msgEl.innerText = "✅ 新增成功！";
   document.getElementById(`name_${modId}`).value='';
   document.getElementById(`amount_${modId}`).value='';
   document.getElementById(`date_${modId}`).value='';
   document.getElementById(`dueDate_${modId}`).value='';
+  document.getElementById(`reminderDays_${modId}`).value='7';
+  document.getElementById(`reminderToggle_${modId}`).checked = false;
+  document.getElementById(`reminderFields_${modId}`).classList.add('hidden');
   await refreshItems(modId, isHousehold);
+  setTimeout(() => {
+    collapsePanel(`addForm_${modId}`, `addToggle_${modId}`);
+    msgEl.innerText = '';
+  }, 900);
 }
 
 async function deleteItem(itemId, modId, isHousehold){
