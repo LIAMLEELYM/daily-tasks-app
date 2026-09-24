@@ -169,6 +169,19 @@
   .row .actions .mini-action { flex:1 1 auto; min-width:88px; margin-left:0; }
   .hidden { display: none !important; }
 
+  .collapse-toggle {
+    display:flex; justify-content:space-between; align-items:center;
+    cursor:pointer; padding:10px 4px; margin-top:4px;
+    border-top:1px solid rgba(200,140,50,0.15);
+    font-weight:600; color: var(--amber-deep); font-size:14px;
+    user-select:none;
+  }
+  .collapse-toggle:hover { color: var(--amber); }
+  .collapse-arrow { transition: transform .25s ease; font-size:13px; }
+  .collapse-toggle.open .collapse-arrow { transform: rotate(180deg); }
+  .collapse-panel { padding-top:6px; }
+  .group-list-wrap { display:flex; flex-direction:column; gap:10px; }
+
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
   .banner.ok { background: rgba(31,157,107,0.09); border-color: rgba(31,157,107,0.3); }
   .banner.ok::before { content:"● "; color: var(--mint); animation: pulseDot 1.8s ease-in-out infinite; }
@@ -344,16 +357,22 @@
     <div id="householdTab" class="hidden">
       <div class="card">
         <h3>👨‍👩‍👧 我的群組</h3>
-        <div id="householdList"></div>
-        <hr>
-        <b>加入群組（輸入邀請碼）</b>
-        <input id="joinCode" placeholder="邀請碼">
-        <button class="action" onclick="joinHousehold()">加入</button>
-        <hr>
-        <b>建立新的自訂群組通知</b>
-        <input id="newHouseholdName" placeholder="群組名稱，例如：小明的小家庭">
-        <button class="action" onclick="createHousehold()">建立群組</button>
-        <div id="householdMsg" class="small"></div>
+        <div id="householdList" class="group-list-wrap"></div>
+
+        <div class="collapse-toggle" onclick="toggleCollapse(this,'householdActionsPanel')">
+          <span>➕ 加入或建立新群組</span>
+          <span class="collapse-arrow">▾</span>
+        </div>
+        <div id="householdActionsPanel" class="collapse-panel hidden">
+          <b>加入群組（輸入邀請碼）</b>
+          <input id="joinCode" placeholder="邀請碼">
+          <button class="action" onclick="joinHousehold()">加入</button>
+          <hr>
+          <b>建立新的自訂群組通知</b>
+          <input id="newHouseholdName" placeholder="群組名稱，例如：小明的小家庭">
+          <button class="action" onclick="createHousehold()">建立群組</button>
+          <div id="householdMsg" class="small"></div>
+        </div>
       </div>
 
       <div id="householdDetail" class="hidden">
@@ -437,6 +456,10 @@ let pendingIconDataUrl = null;
 let profileCache = {};
 
 function toggleEl(id){ document.getElementById(id).classList.toggle('hidden'); }
+function toggleCollapse(headerEl, panelId){
+  document.getElementById(panelId).classList.toggle('hidden');
+  headerEl.classList.toggle('open');
+}
 function currencyOptions(selected){
   return CURRENCIES.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
 }
