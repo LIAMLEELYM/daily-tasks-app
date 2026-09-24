@@ -126,7 +126,7 @@
 
   button.action {
     background: linear-gradient(120deg,var(--amber),var(--amber-deep)); color:#fff8ee; border:none;
-    padding:11px 18px; border-radius:10px; cursor:pointer; font-weight:700; font-size:15px;
+    padding:11px 18px; border-radius:10px; cursor:pointer;
     box-shadow: 0 2px 8px rgba(200,140,50,0.25); transition: box-shadow .3s, transform .15s;
   }
   button.action:hover { box-shadow: 0 0 16px var(--amber-soft); transform: translateY(-1px); }
@@ -192,6 +192,7 @@
   }
   button.secondary, button.action {
     display:block; width:100%; box-sizing:border-box; text-align:center; margin:6px 0;
+    font-size:15px; font-weight:700;
   }
 
   .topbar { justify-content:space-between; align-items:center; }
@@ -219,6 +220,12 @@
     background: var(--bg-base); border-radius:18px; padding:22px; max-width:360px; width:100%;
     box-shadow: 0 12px 40px rgba(80,50,20,0.3); text-align:center; max-height:88vh; overflow-y:auto;
   }
+  .modal-btn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .modal-btn-row button { width:100%; margin:0; }
+
+  .calc-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .calc-select { flex:1 1 100px; min-width:90px; width:auto; margin:0; height:44px; }
+  .calc-btn { flex:0 0 auto; width:auto; margin:0; padding:0 18px; height:44px; font-size:14px; white-space:nowrap; background: rgba(28,143,176,0.12); color: var(--sky); border:none; border-radius:9px; cursor:pointer; font-weight:600; }
 
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
   .banner.ok { background: rgba(31,157,107,0.09); border-color: rgba(31,157,107,0.3); }
@@ -298,12 +305,24 @@
 
   <div id="authView">
     <div class="card">
-      <h3>登入</h3>
-      <input id="authEmail" type="email" placeholder="Email">
-      <input id="authPassword" type="password" placeholder="密碼">
-      <input id="authNickname" placeholder="暱稱（例如：小明，註冊時填寫）">
-      <button class="action" onclick="login()">登入</button>
-      <button class="secondary" onclick="signup()">註冊新帳號</button>
+      <div class="tabs">
+        <button id="authTabLogin" class="tab-btn active" onclick="switchAuthMode('login')">登入</button>
+        <button id="authTabSignup" class="tab-btn" onclick="switchAuthMode('signup')">註冊新帳號</button>
+      </div>
+
+      <div id="authLoginForm">
+        <input id="authEmail" type="email" placeholder="Email">
+        <input id="authPassword" type="password" placeholder="密碼">
+        <button class="action" onclick="login()">登入</button>
+      </div>
+
+      <div id="authSignupForm" class="hidden">
+        <input id="signupEmail" type="email" placeholder="Email">
+        <input id="signupPassword" type="password" placeholder="密碼">
+        <input id="signupNickname" placeholder="暱稱（例如：小明）">
+        <button class="action" onclick="signup()">註冊新帳號</button>
+      </div>
+
       <div id="authMsg" class="small"></div>
     </div>
 
@@ -471,13 +490,9 @@
     <input type="file" id="iconFileInput" accept="image/*">
     <div id="iconPreviewArea" class="hidden" style="text-align:center;margin-top:10px">
       <img id="iconPreviewImg" style="width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid rgba(200,140,50,0.3)">
-      <div class="inline-flex" style="margin-top:10px">
-        <button class="action" style="flex:1" onclick="confirmImageIcon()">✅ 確認使用此圖片</button>
-      </div>
+      <button class="action" style="margin-top:10px" onclick="confirmImageIcon()">✅ 確認使用此圖片</button>
     </div>
-    <div class="inline-flex" style="margin-top:12px">
-      <button class="secondary" style="flex:1" onclick="closeIconPicker()">取消</button>
-    </div>
+    <button class="secondary" style="margin-top:12px" onclick="closeIconPicker()">取消</button>
   </div>
 </div>
 
@@ -490,9 +505,9 @@
     <label class="field-label">暱稱</label>
     <input id="profileNicknameInput" placeholder="輸入你的暱稱">
     <div id="profileModalMsg" class="small"></div>
-    <div class="inline-flex" style="margin-top:12px">
-      <button class="secondary" style="flex:1" onclick="closeProfileModal()">取消</button>
-      <button class="action" style="flex:1" onclick="saveProfile()">✅ 儲存</button>
+    <div class="modal-btn-row">
+      <button class="secondary" onclick="closeProfileModal()">取消</button>
+      <button class="action" onclick="saveProfile()">✅ 儲存</button>
     </div>
   </div>
 </div>
@@ -538,10 +553,19 @@ function currencyOptions(selected){
   return CURRENCIES.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
 }
 
+function switchAuthMode(mode){
+  const isLogin = mode === 'login';
+  document.getElementById('authTabLogin').classList.toggle('active', isLogin);
+  document.getElementById('authTabSignup').classList.toggle('active', !isLogin);
+  document.getElementById('authLoginForm').classList.toggle('hidden', !isLogin);
+  document.getElementById('authSignupForm').classList.toggle('hidden', isLogin);
+  document.getElementById('authMsg').innerText = '';
+}
+
 async function signup(){
-  const email = document.getElementById('authEmail').value;
-  const password = document.getElementById('authPassword').value;
-  const nickname = document.getElementById('authNickname').value.trim();
+  const email = document.getElementById('signupEmail').value;
+  const password = document.getElementById('signupPassword').value;
+  const nickname = document.getElementById('signupNickname').value.trim();
   if (!email || !password) { document.getElementById('authMsg').innerText = "請輸入 Email 和密碼"; return; }
   const { error } = await sb.auth.signUp({ email, password, options: { data: { nickname: nickname || null } } });
   document.getElementById('authMsg').innerText = error ? error.message : "註冊成功！請檢查Email確認信後回來登入。";
@@ -1021,10 +1045,10 @@ async function renderCalc(modId, items){
   if (!box) return;
   if (!items || items.length === 0) { box.innerHTML = ''; return; }
   box.innerHTML = `
-    <div class="inline-flex">
+    <div class="calc-row">
       <span class="small">💱 換算成：</span>
-      <select id="calcCurrency_${modId}" style="width:100px">${currencyOptions('HKD')}</select>
-      <button class="mini-action info" onclick="runCalc('${modId}')">計算總額</button>
+      <select id="calcCurrency_${modId}" class="calc-select">${currencyOptions('HKD')}</select>
+      <button class="calc-btn info" onclick="runCalc('${modId}')">計算總額</button>
     </div>
     <div id="calcResult_${modId}" class="small" style="margin-top:6px"></div>
   `;
