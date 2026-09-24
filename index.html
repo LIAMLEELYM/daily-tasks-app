@@ -182,10 +182,14 @@
   .collapse-panel { padding-top:10px; }
   .group-list-wrap { display:flex; flex-direction:column; gap:10px; }
 
-  input[type="date"] {
+  .date-field { width:100%; overflow:hidden; border-radius:9px; box-sizing:border-box; }
+  .date-field input[type="date"] {
     width:100%; max-width:100%; min-width:0; box-sizing:border-box;
-    -webkit-min-logical-width: 0;
-    padding:9px 10px; font-size:14px;
+    -webkit-appearance:none; appearance:none; display:block;
+    padding:9px 10px; font-size:14px; margin:2px 0 8px 0;
+  }
+  button.secondary, button.action {
+    display:block; width:100%; box-sizing:border-box; text-align:center; margin:6px 0;
   }
 
   .banner { background: rgba(232,137,31,0.09); border:1px solid rgba(232,137,31,0.25); border-radius:12px; padding:12px; margin-bottom:14px; font-size:14px; color: var(--text-main); }
@@ -253,7 +257,6 @@
     .meta-tag { font-size:11px; padding:3px 7px; }
     button.mini-action { min-width:0; flex:1 1 30%; padding:8px 6px; font-size:12px; }
     .module-title h3 { font-size:15px; }
-    button.action { width:100%; font-size:14px; }
     .inline-flex > div.currency-col { flex:0 0 80px; }
   }
 </style>
@@ -323,33 +326,40 @@
       <div class="card">
         <h3>🔔 到期通知設定</h3>
         <div id="telegramBanner" class="banner">尚未綁定 Telegram 專屬提醒 Bot</div>
-        <button class="secondary" onclick="toggleEl('telegramSetup')">📱 設定 Telegram 到期通知</button>
-        <span class="info-icon" onclick="toggleEl('telegramTutorial')">ℹ️ 查看教學</span>
-        <div id="telegramTutorial" class="tutorial hidden">
-          <b>如何取得 Bot 使用者名稱與 API Token：</b>
-          <ol>
-            <li>下載並打開 Telegram App，完成手機號碼註冊。</li>
-            <li>搜尋 <b>@BotFather</b>，點擊開始對話。</li>
-            <li>輸入指令 <code>/newbot</code>，依提示命名並取得使用者名稱（需以 bot 結尾）。</li>
-            <li>複製 BotFather 回覆的 API Token。</li>
-            <li>填入下方欄位並確認。</li>
-          </ol>
-        </div>
-        <div id="telegramSetup" class="hidden" style="margin-top:10px">
-          <label class="field-label">Bot 使用者名稱</label>
-          <input id="tgUsername" placeholder="例如 xiaoming_reminder_bot">
-          <label class="field-label">Bot API Token</label>
-          <input id="tgToken" placeholder="從 BotFather 取得的 Token">
-          <button class="action" onclick="setupPersonalBot()">確認並自動部署 Bot</button>
-          <button class="secondary" onclick="resetPersonalBot()">🔄 重新綁定 / 清除設定</button>
-          <div id="tgSetupMsg" class="small"></div>
-        </div>
-        <hr>
         <div id="emailBanner" class="banner">尚未啟用 Email 到期通知</div>
-        <button class="secondary" onclick="toggleEl('emailSetup')">📧 設定 Email 到期通知</button>
-        <div id="emailSetup" class="hidden" style="margin-top:10px">
-          <p class="small">將使用你註冊登入時的 Email 地址接收到期提醒。</p>
-          <button class="action" id="emailToggleBtn" onclick="toggleEmail()">啟用 Email 通知</button>
+
+        <div class="collapse-toggle" onclick="toggleCollapse(this,'notifSettingsPanel')">
+          <span>⚙️ 通知設定（Telegram / Email）</span>
+          <span class="collapse-arrow">▾</span>
+        </div>
+        <div id="notifSettingsPanel" class="collapse-panel hidden">
+          <button class="secondary" onclick="toggleEl('telegramSetup')">📱 設定 Telegram 到期通知</button>
+          <span class="info-icon" onclick="toggleEl('telegramTutorial')">ℹ️ 查看教學</span>
+          <div id="telegramTutorial" class="tutorial hidden">
+            <b>如何取得 Bot 使用者名稱與 API Token：</b>
+            <ol>
+              <li>下載並打開 Telegram App，完成手機號碼註冊。</li>
+              <li>搜尋 <b>@BotFather</b>，點擊開始對話。</li>
+              <li>輸入指令 <code>/newbot</code>，依提示命名並取得使用者名稱（需以 bot 結尾）。</li>
+              <li>複製 BotFather 回覆的 API Token。</li>
+              <li>填入下方欄位並確認。</li>
+            </ol>
+          </div>
+          <div id="telegramSetup" class="hidden" style="margin-top:10px">
+            <label class="field-label">Bot 使用者名稱</label>
+            <input id="tgUsername" placeholder="例如 xiaoming_reminder_bot">
+            <label class="field-label">Bot API Token</label>
+            <input id="tgToken" placeholder="從 BotFather 取得的 Token">
+            <button class="action" onclick="setupPersonalBot()">確認並自動部署 Bot</button>
+            <button class="secondary" onclick="resetPersonalBot()">🔄 重新綁定 / 清除設定</button>
+            <div id="tgSetupMsg" class="small"></div>
+          </div>
+          <hr>
+          <button class="secondary" onclick="toggleEl('emailSetup')">📧 設定 Email 到期通知</button>
+          <div id="emailSetup" class="hidden" style="margin-top:10px">
+            <p class="small">將使用你註冊登入時的 Email 地址接收到期提醒。</p>
+            <button class="action" id="emailToggleBtn" onclick="toggleEmail()">啟用 Email 通知</button>
+          </div>
         </div>
       </div>
 
@@ -669,7 +679,7 @@ async function renderModules(containerId, householdId){
           </div>
         </div>
         <label class="field-label">開支日期</label>
-        <input id="date_${mod.id}" type="date">
+        <div class="date-field"><input id="date_${mod.id}" type="date"></div>
 
         <div class="switch-row">
           <label class="switch">
@@ -680,7 +690,7 @@ async function renderModules(containerId, householdId){
         </div>
         <div id="reminderFields_${mod.id}" class="hidden">
           <label class="field-label">到期日期</label>
-          <input id="dueDate_${mod.id}" type="date">
+          <div class="date-field"><input id="dueDate_${mod.id}" type="date"></div>
           <label class="field-label">希望到期前多久提醒您（天，可填多個，例如 7,30）</label>
           <input id="reminderDays_${mod.id}" placeholder="例如 7,30" value="7">
         </div>
@@ -821,7 +831,7 @@ async function refreshItems(modId, isHousehold){
           <span class="switch-label">啟用到期提醒</span>
         </div>
         <label class="field-label">到期日期</label>
-        <input id="rduedate_${it.id}" type="date" value="${it.due_date||''}">
+        <div class="date-field"><input id="rduedate_${it.id}" type="date" value="${it.due_date||''}"></div>
         <label class="field-label">希望到期前多久提醒您（天）</label>
         <input id="rdays_${it.id}" placeholder="例如 7,30" value="${(it.reminder_days||[]).join(',')}">
         <button class="action" onclick="saveReminder('${it.id}','${modId}',${isHousehold})">儲存提醒設定</button>
